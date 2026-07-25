@@ -1,0 +1,3 @@
+Préserver autant que possible les distances	MDS
+Montrer les groupes ou clusters	UMAP
+Montrer les voisinages locaux	t-SNE
