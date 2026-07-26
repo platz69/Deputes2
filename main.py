@@ -1,6 +1,3 @@
-from unittest import case
-
-import pandas as pd
 import numpy as np
 import umap
 
@@ -10,8 +7,7 @@ COORDINATES_FILE = "coordinates.csv"
 
 
 def calcul_distances():
-    # Lecture du fichier CSV
-    # La première colonne (s1...s10) est utilisée comme index
+    # Lecture du fichier CSV, la première colonne (s1...s10) est utilisée comme index
     df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
 
     # Les colonnes représentent les points
@@ -26,7 +22,7 @@ def calcul_distances():
     # Matrice des distances
     dist = np.zeros((n, n), dtype=int)
 
-    # Calcul des distances de Manhattan
+    # Calcul des distances (même vote : +0, une abstention : +1, opposé : +2)
     for i in range(n):
         for j in range(i, n):
             d = np.sum(np.abs(X[:, i] - X[:, j]))
@@ -40,7 +36,7 @@ def calcul_distances():
     print(distance_df)
 
     # Sauvegarde éventuelle
-    distance_df.to_csv(DISTANCES_FILE)
+    distance_df.to_csv(DISTANCES_FILE, sep=';')
 
 
 def umap_2d(input_csv=DISTANCES_FILE,
@@ -80,31 +76,34 @@ from sklearn.manifold import MDS
 import matplotlib.pyplot as plt
 
 
-def mds(csv_file, n_components=2, random_state=42, plot=True):
+def mds(distance_file,
+                    voters_file="votants.csv",
+                    n_components=2,
+                    random_state=42,
+                    plot=True):
     """
-    Reduce a square distance matrix using Metric MDS.
-
-    Parameters
-    ----------
-    csv_file : str
-        Path to CSV containing a square distance matrix.
-    n_components : int
-        Number of output dimensions (2 or 3).
-    random_state : int
-        Random seed for reproducibility.
-    plot : bool
-        If True, display a scatter plot.
-
-    Returns
-    -------
-    embedding : pandas.DataFrame
-        Coordinates of each item.
+    Réduit une matrice de distances avec MDS et remplace les identifiants
+    v1, v2... par les noms contenus dans votants.csv.
     """
 
-    # Read distance matrix
-    D = pd.read_csv(csv_file, index_col=0)
+    # Matrice des distances
+    D = pd.read_csv(distance_file, index_col=0)
 
-    # Metric MDS
+    # Lecture des votants (séparateur ;)
+    voters = pd.read_csv(
+        voters_file,
+        sep=";",
+        header=None,
+        names=["id", "nom", "prenom"]
+    )
+
+    # Dictionnaire : v1 -> Laurent FABIUS
+    labels = {
+        row.id: f"{row.prenom} {row.nom}"
+        for _, row in voters.iterrows()
+    }
+
+    # MDS
     mds = MDS(
         n_components=n_components,
         dissimilarity="precomputed",
@@ -116,20 +115,33 @@ def mds(csv_file, n_components=2, random_state=42, plot=True):
 
     embedding = pd.DataFrame(
         coords,
-        index=D.index,
+        index=D.index.map(lambda x: labels.get(x, x)),
         columns=[f"MDS{i+1}" for i in range(n_components)]
     )
 
     if plot and n_components == 2:
-        plt.figure(figsize=(6, 6))
-        plt.scatter(embedding["MDS1"], embedding["MDS2"])
+        plt.figure(figsize=(8, 8))
+
+        plt.scatter(
+            embedding["MDS1"],
+            embedding["MDS2"],
+            s=80,
+            color="steelblue"
+        )
 
         for name, (x, y) in embedding.iterrows():
-            plt.text(x, y, name, fontsize=10)
+            plt.text(
+                x,
+                y,
+                name,
+                fontsize=10,
+                ha="left",
+                va="bottom"
+            )
 
         plt.xlabel("MDS1")
         plt.ylabel("MDS2")
-        plt.title("Metric MDS")
+        plt.title("Projection MDS des votants")
         plt.axis("equal")
         plt.tight_layout()
         plt.show()
