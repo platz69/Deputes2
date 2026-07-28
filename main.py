@@ -6,9 +6,12 @@ import json
 # bibliothèques externes
 import pandas as pd
 
+# entrées
 SCRUTINS_FOLDER = "Scrutins"
+GROUPES_FILE    = "groupes.csv"
+DEPUTES_FILE    = "liste_deputes_excel.16e.csv"
 
-DEPUTES_FILE     = "liste_deputes_excel.16e.csv"
+# sorties
 VOTES_FILE       = "votes.csv"
 DISTANCES_FILE   = "distances.csv"
 COORDINATES_FILE = "coordinates.csv"
@@ -153,8 +156,7 @@ def mds_2d(distance_file,
            random_state=42,
            plot=True):
     """
-    Réduit une matrice de distances avec MDS et remplace les identifiants
-    v1, v2... par les noms contenus dans DEPUTES_FILE.
+    Réduit une matrice de distances avec MDS
     """
 
     from sklearn.manifold import MDS
@@ -162,15 +164,6 @@ def mds_2d(distance_file,
 
     # Matrice des distances
     distances = pd.read_csv(distance_file, sep=';', header=0, index_col=0)
-
-    # # Lecture des votants (séparateur ;)
-    # voters = pd.read_csv(voters_file, sep=";", header=0)
-
-    # # Dictionnaire : v1 -> Laurent FABIUS
-    # labels = {
-    #     row.id: f"{row.prenom} {row.nom}"
-    #     for _, row in voters.iterrows()
-    # }
 
     # MDS
     mds = MDS(
@@ -197,6 +190,19 @@ def mds_2d(distance_file,
             s=80,
             color="steelblue"
         )
+
+        deputes = pd.read_csv(DEPUTES_FILE, sep=";")
+        groupes = pd.read_csv(GROUPES_FILE, sep=";")
+
+        # Jointure sur le nom du groupe politique
+        df = deputes.merge(
+            groupes[["Groupe politique (abrégé)", "couleur"]],
+            on="Groupe politique (abrégé)",
+            how="left"
+        )
+
+        # Dictionnaire : identifiant -> couleur
+        # deputes_couleur = dict(zip("PA"+df["identifiant"].astype(str), df["couleur"]))
 
         # étiquetage
         for name, (x, y) in embedding.iterrows():
