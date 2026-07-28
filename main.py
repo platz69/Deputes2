@@ -1,36 +1,110 @@
-import numpy as np
-import umap
+# bibliothèques standard
+import os
+import csv
+import json
 
+# bibliothèques externes
+import pandas as pd
+
+SCRUTINS_FOLDER = "Scrutins"
+
+DEPUTES_FILE     = "liste_deputes_excel.16e.csv"
 VOTES_FILE       = "votes.csv"
 DISTANCES_FILE   = "distances.csv"
 COORDINATES_FILE = "coordinates.csv"
 
 
+def calcul_votes():
+
+    # Dictionnaire pour stocker les votes : {acteurRef: {scrutin_uid: vote_value}}
+    votes_dict = {}
+    scrutins_list = []
+    
+    # Parcourir les fichiers JSON du dossier Scrutins
+    for file in sorted(os.listdir(SCRUTINS_FOLDER)):
+        if file.endswith(".json"):
+            scrutin_id = file.replace(".json", "")
+            scrutins_list.append(scrutin_id)
+
+            json_path = os.path.join(SCRUTINS_FOLDER, file)
+            with open(json_path, encoding='utf-8') as f:
+                data    = json.load(f)
+                groups  = data['scrutin']['ventilationVotes']['organe']['groupes']['groupe']
+
+                # if not isinstance(groups, list):
+                #     groups = [groups]
+                
+                # Pour chaque groupe, extraire les votes
+                for group in groups:
+                    
+                    # Traiter les différentes catégories de vote
+                    vote_value_map = {
+                        'pours': 1,
+                        'contres': -1,
+                        'abstentions': 0,
+                        'nonVotants': 0
+                    }
+
+                    # parcours des 4 catégories 'pours', 'contres', 'abstentions', 'nonVotants'
+                    vote_par_categorie = group['vote']['decompteNominatif']
+
+                    for category, vote_value in vote_value_map.items():
+                        if vote_par_categorie[category]:
+                            votants = vote_par_categorie[category]['votant']
+                            if not isinstance(votants, list):
+                                votants = [votants]
+                            
+                            # parcours des votants d'une catégorie
+                            for votant in votants:
+                                acteur_ref = votant['acteurRef']
+                                if acteur_ref not in votes_dict:
+                                    votes_dict[acteur_ref] = {}
+                                votes_dict[acteur_ref][scrutin_id] = vote_value
+    
+    # Créer le CSV avec en-têtes des scrutins et votes
+    with open(VOTES_FILE, "w", encoding="utf-8", newline='') as f:
+        # En-tête avec les UIDs des scrutins
+        header = [''] + scrutins_list
+        f.write(";".join(header) + "\n")
+        
+        # Pour chaque votant, écrire son ID et ses votes
+        for acteur_ref in sorted(votes_dict.keys()):
+            row = [acteur_ref]
+            for scrutin_uid in scrutins_list:
+                vote_value = votes_dict[acteur_ref].get(scrutin_uid, '')
+                row.append(str(vote_value) if vote_value != '' else '0')
+            f.write(";".join(row) + "\n")
+    
+    print(f"Fichier {VOTES_FILE} créé avec succès !")
+
+
 def calcul_distances():
+    import numpy as np
+
     # Lecture du fichier CSV, la première colonne (s1...s10) est utilisée comme index
     df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
 
-    # Les colonnes représentent les points
-    points = df.columns
+    deputes = df.index
 
     # Conversion en tableau NumPy
-    X = df.to_numpy()
+    votes = df.to_numpy()
 
     # Nombre de points
-    n = X.shape[1]
+    nb_deputes = df.shape[0]
+    nb_votes   = df.shape[1]
 
     # Matrice des distances
-    dist = np.zeros((n, n), dtype=int)
+    dist = np.zeros((nb_deputes, nb_deputes), dtype=int)
 
     # Calcul des distances (même vote : +0, une abstention : +1, opposé : +2)
-    for i in range(n):
-        for j in range(i, n):
-            d = np.sum(np.abs(X[:, i] - X[:, j]))
+    for i in range(nb_deputes):
+        for j in range(i, nb_deputes):
+            d = np.sum(np.abs(votes[i,:] - votes[j,:]))
             dist[i, j] = d
             dist[j, i] = d
 
     # Conversion en DataFrame pour conserver les noms
-    distance_df = pd.DataFrame(dist, index=points, columns=points)
+    distance_df = pd.DataFrame(dist, index=deputes, columns=deputes)
 
     # Affichage
     print(distance_df)
@@ -45,12 +119,14 @@ def umap_2d(input_csv=DISTANCES_FILE,
             min_dist=0,
             random_state=42):
 
+    import umap
+
     # Read the data
     df = pd.read_csv(input_csv, index_col=0)
 
     # UMAP expects one sample per row.
     # Since the points are the columns, transpose the matrix.
-    X = df.T
+    distances = df.T
 
     reducer = umap.UMAP(
         n_components=2,
@@ -60,48 +136,41 @@ def umap_2d(input_csv=DISTANCES_FILE,
         random_state=random_state
     )
 
-    Y = reducer.fit_transform(X)
+    reduc = reducer.fit_transform(distances)
 
     result = pd.DataFrame(
-        Y,
-        index=X.index,
+        reduc,
+        index=distances.index,
         columns=["x", "y"]
     )
 
     result.to_csv(output_csv, sep=';')
 
 
-import pandas as pd
-from sklearn.manifold import MDS
-import matplotlib.pyplot as plt
-
-
-def mds(distance_file,
-                    voters_file="votants.csv",
-                    n_components=2,
-                    random_state=42,
-                    plot=True):
+def mds_2d(distance_file,
+           voters_file=DEPUTES_FILE,
+           n_components=2,
+           random_state=42,
+           plot=True):
     """
     Réduit une matrice de distances avec MDS et remplace les identifiants
-    v1, v2... par les noms contenus dans votants.csv.
+    v1, v2... par les noms contenus dans DEPUTES_FILE.
     """
 
+    from sklearn.manifold import MDS
+    import matplotlib.pyplot as plt
+
     # Matrice des distances
-    D = pd.read_csv(distance_file, index_col=0)
+    distances = pd.read_csv(distance_file, sep=';', header=0, index_col=0)
 
-    # Lecture des votants (séparateur ;)
-    voters = pd.read_csv(
-        voters_file,
-        sep=";",
-        header=None,
-        names=["id", "nom", "prenom"]
-    )
+    # # Lecture des votants (séparateur ;)
+    # voters = pd.read_csv(voters_file, sep=";", header=0)
 
-    # Dictionnaire : v1 -> Laurent FABIUS
-    labels = {
-        row.id: f"{row.prenom} {row.nom}"
-        for _, row in voters.iterrows()
-    }
+    # # Dictionnaire : v1 -> Laurent FABIUS
+    # labels = {
+    #     row.id: f"{row.prenom} {row.nom}"
+    #     for _, row in voters.iterrows()
+    # }
 
     # MDS
     mds = MDS(
@@ -111,11 +180,11 @@ def mds(distance_file,
         normalized_stress="auto"
     )
 
-    coords = mds.fit_transform(D.values)
+    coords = mds.fit_transform(distances.values)
 
     embedding = pd.DataFrame(
         coords,
-        index=D.index.map(lambda x: labels.get(x, x)),
+        index=distances.index,
         columns=[f"MDS{i+1}" for i in range(n_components)]
     )
 
@@ -129,6 +198,7 @@ def mds(distance_file,
             color="steelblue"
         )
 
+        # étiquetage
         for name, (x, y) in embedding.iterrows():
             plt.text(
                 x,
@@ -146,12 +216,14 @@ def mds(distance_file,
         plt.tight_layout()
         plt.show()
 
+    input('Continuer')
     return embedding
 
 
-choix = input("d: distances, u: réduction UMA, m: MDS ")
+choix = input("v: votes, d: distances, u: réduction UMA, m: MDS ")
 match choix:
+    case "v": calcul_votes()
     case "d": calcul_distances()
     case "u": umap_2d(DISTANCES_FILE, COORDINATES_FILE)
-    case "m": mds(DISTANCES_FILE)
+    case "m": mds_2d(DISTANCES_FILE)
 
