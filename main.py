@@ -191,6 +191,7 @@ def mds_2d(distance_file,
             color="steelblue"
         )
 
+        # Dictionnaire : identifiant -> couleur
         deputes = pd.read_csv(DEPUTES_FILE, sep=";")
         groupes = pd.read_csv(GROUPES_FILE, sep=";")
 
@@ -201,7 +202,6 @@ def mds_2d(distance_file,
             how="left"
         )
 
-        # Dictionnaire : identifiant -> couleur
         # deputes_couleur = dict(zip("PA"+df["identifiant"].astype(str), df["couleur"]))
 
         # étiquetage

@@ -1,3 +1,10 @@
+--Algorithmes de réduction
 Préserver autant que possible les distances	MDS
 Montrer les groupes ou clusters	UMAP
 Montrer les voisinages locaux	t-SNE
+
+--trouver le parti d'un acteur
+acteurRef = "PA1208" > fichier PAxxx dans /Acteurs/PA1208.json
+> ligne "typeOrgane": "PARPOL" la + récente
+> "organeRef": "PO710396" Organe/PO710396.json
+> "libelle": "Les R\u00e9publicains"
