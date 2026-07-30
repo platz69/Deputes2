@@ -8,10 +8,10 @@ import pandas as pd
 # entrées
 SCRUTINS_FOLDER = "Scrutins"
 ORGANES_FOLDER  = "Organes"
-GROUPES_FILE    = "groupes.csv"
-DEPUTES_FILE    = "liste_deputes_excel.16e.csv"
+GROUPES_FILE    = "groupes_couleurs.csv"
 
 # sorties
+ACTEURS_GROUP_FILE = "acteurs_groupes.csv"
 VOTES_FILE       = "votes.csv"
 DISTANCES_FILE   = "distances.csv"
 COORDINATES_FILE = "coordinates.csv"
@@ -31,7 +31,7 @@ def calcul_organes():
                     data           = json.load(f)
                     organe         = data['organe']['uid']
                     type_organe    = data['organe']['codeType']
-                    libelle_abrev = data['organe']['libelleAbrev']
+                    libelle_abrev  = data['organe']['libelleAbrev']
                     libelle        = data['organe']['libelle']
                     organe_file.write(";".join([organe, type_organe, libelle_abrev, libelle]) + "\n")
 
@@ -41,6 +41,7 @@ def calcul_votes():
     # Dictionnaire pour stocker les votes : {acteurRef: {scrutin_uid: vote_value}}
     votes_dict = {}
     scrutins_list = []
+    votant_dict = {}
     
     # Parcourir les fichiers JSON du dossier Scrutins
     for file in sorted(os.listdir(SCRUTINS_FOLDER)):
@@ -58,9 +59,6 @@ def calcul_votes():
                 
                 # Pour chaque groupe, extraire les votes
                 for group in groups:
-                    
-                    # groupe parlementaire
-                    gp = group['organeRef']
 
                     # Traiter les différentes catégories de vote
                     vote_value_map = {
@@ -85,6 +83,9 @@ def calcul_votes():
                                 if acteur_ref not in votes_dict:
                                     votes_dict[acteur_ref] = {}
                                 votes_dict[acteur_ref][scrutin_id] = vote_value
+
+                                # profitons-en pour stocker le groupe parlementaire du votant
+                                votant_dict[acteur_ref] = group['organeRef']
     
     # Créer le CSV avec en-têtes des scrutins et votes
     with open(VOTES_FILE, "w", encoding="utf-8", newline='') as f:
@@ -99,7 +100,12 @@ def calcul_votes():
                 vote_value = votes_dict[acteur_ref].get(scrutin_uid, '')
                 row.append(str(vote_value) if vote_value != '' else '0')
             f.write(";".join(row) + "\n")
-    
+
+    # Créer le CSV des ovtants_groupe parlementaire
+    with open(ACTEURS_GROUP_FILE, "w", encoding="utf-8", newline='') as f:
+        for acteur_ref in sorted(votes_dict.keys()):
+            f.write(";".join([acteur_ref, votant_dict[acteur_ref]]) + "\n")
+
     print(f"Fichier {VOTES_FILE} créé avec succès !")
 
 
@@ -147,11 +153,7 @@ def umap_2d(input_csv=DISTANCES_FILE,
     import umap
 
     # Read the data
-    df = pd.read_csv(input_csv, index_col=0)
-
-    # UMAP expects one sample per row.
-    # Since the points are the columns, transpose the matrix.
-    distances = df.T
+    distances = pd.read_csv(input_csv, index_col=0)
 
     reducer = umap.UMAP(
         n_components=2,
@@ -174,7 +176,6 @@ def umap_2d(input_csv=DISTANCES_FILE,
 
 
 def mds_2d(distance_file,
-           voters_file=DEPUTES_FILE,
            n_components=2,
            random_state=42,
            plot=True):
@@ -218,15 +219,8 @@ def mds_2d(distance_file,
         )
 
         # Dictionnaire : identifiant -> couleur
-        deputes = pd.read_csv(DEPUTES_FILE, sep=";")
         groupes = pd.read_csv(GROUPES_FILE, sep=";")
-
-        # Jointure sur le nom du groupe politique
-        df = deputes.merge(
-            groupes[["Groupe politique (abrégé)", "couleur"]],
-            on="Groupe politique (abrégé)",
-            how="left"
-        )
+        organes = pd.read_csv(ORGANES_FILE, sep=";")
 
         # deputes_couleur = dict(zip("PA"+df["identifiant"].astype(str), df["couleur"]))
 
@@ -252,7 +246,7 @@ def mds_2d(distance_file,
     return embedding
 
 
-choix = input("o: organes, v: votes, d: distances, u: réduction UMA, m: MDS ")
+choix = input("o: organes, v: votes, d: distances, u: réduction UMA, m: réduction MDS ")
 match choix:
     case "o": calcul_organes()
     case "v": calcul_votes()
