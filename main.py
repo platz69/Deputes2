@@ -1,6 +1,5 @@
 # bibliothèques standard
 import os
-import csv
 import json
 
 # bibliothèques externes
@@ -8,6 +7,7 @@ import pandas as pd
 
 # entrées
 SCRUTINS_FOLDER = "Scrutins"
+ORGANES_FOLDER  = "Organes"
 GROUPES_FILE    = "groupes.csv"
 DEPUTES_FILE    = "liste_deputes_excel.16e.csv"
 
@@ -15,6 +15,25 @@ DEPUTES_FILE    = "liste_deputes_excel.16e.csv"
 VOTES_FILE       = "votes.csv"
 DISTANCES_FILE   = "distances.csv"
 COORDINATES_FILE = "coordinates.csv"
+ORGANES_FILE     = "organes.csv"
+
+
+def calcul_organes():
+
+    # ouverture du fichier organes en écriture
+    with open(ORGANES_FILE, "w", encoding="utf-8", newline='') as organe_file:
+
+    # Parcourir les fichiers JSON du dossier Organes
+     for file in sorted(os.listdir(ORGANES_FOLDER)):
+            if file.endswith(".json"):
+                json_path = os.path.join(ORGANES_FOLDER, file)
+                with open(json_path, encoding='utf-8') as f:
+                    data           = json.load(f)
+                    organe         = data['organe']['uid']
+                    type_organe    = data['organe']['codeType']
+                    libelle_abrev = data['organe']['libelleAbrev']
+                    libelle        = data['organe']['libelle']
+                    organe_file.write(";".join([organe, type_organe, libelle_abrev, libelle]) + "\n")
 
 
 def calcul_votes():
@@ -40,6 +59,9 @@ def calcul_votes():
                 # Pour chaque groupe, extraire les votes
                 for group in groups:
                     
+                    # groupe parlementaire
+                    gp = group['organeRef']
+
                     # Traiter les différentes catégories de vote
                     vote_value_map = {
                         'pours': 1,
@@ -84,7 +106,7 @@ def calcul_votes():
 def calcul_distances():
     import numpy as np
 
-    # Lecture du fichier CSV, la première colonne (s1...s10) est utilisée comme index
+    # Lecture du fichier CSV, la première colonne est utilisée comme index
     df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
 
     deputes = df.index
@@ -147,7 +169,8 @@ def umap_2d(input_csv=DISTANCES_FILE,
         columns=["x", "y"]
     )
 
-    result.to_csv(output_csv, sep=';')
+    # Sauvegarde du fichier des coordonnées
+    result.to_csv(COORDINATES_FILE, sep=';')
 
 
 def mds_2d(distance_file,
@@ -180,6 +203,9 @@ def mds_2d(distance_file,
         index=distances.index,
         columns=[f"MDS{i+1}" for i in range(n_components)]
     )
+
+    # Sauvegarde du fichier des coordonnées
+    embedding.to_csv(COORDINATES_FILE, sep=';')
 
     if plot and n_components == 2:
         plt.figure(figsize=(8, 8))
@@ -215,8 +241,8 @@ def mds_2d(distance_file,
                 va="bottom"
             )
 
-        plt.xlabel("MDS1")
-        plt.ylabel("MDS2")
+        plt.xlabel("X")
+        plt.ylabel("Y")
         plt.title("Projection MDS des votants")
         plt.axis("equal")
         plt.tight_layout()
@@ -226,8 +252,9 @@ def mds_2d(distance_file,
     return embedding
 
 
-choix = input("v: votes, d: distances, u: réduction UMA, m: MDS ")
+choix = input("o: organes, v: votes, d: distances, u: réduction UMA, m: MDS ")
 match choix:
+    case "o": calcul_organes()
     case "v": calcul_votes()
     case "d": calcul_distances()
     case "u": umap_2d(DISTANCES_FILE, COORDINATES_FILE)
