@@ -6,9 +6,9 @@ import json
 import pandas as pd
 
 # entrées
-SCRUTINS_FOLDER = "Scrutins"
-ORGANES_FOLDER  = "Organes"
-GROUPES_FILE    = "groupes_couleurs.csv"
+SCRUTINS_FOLDER       = "Scrutins"
+ORGANES_FOLDER        = "Organes"
+GROUPES_COULEURS_FILE = "groupes_couleurs.csv"
 
 # sorties
 ACTEURS_GROUP_FILE = "acteurs_groupes.csv"
@@ -31,7 +31,7 @@ def calcul_organes():
                     data           = json.load(f)
                     organe         = data['organe']['uid']
                     type_organe    = data['organe']['codeType']
-                    libelle_abrev  = data['organe']['libelleAbrev']
+                    libelle_abrev  = str(data['organe']['libelleAbrev']).upper()
                     libelle        = data['organe']['libelle']
                     organe_file.write(";".join([organe, type_organe, libelle_abrev, libelle]) + "\n")
 
@@ -42,7 +42,7 @@ def calcul_votes():
     votes_dict = {}
     scrutins_list = []
     votant_dict = {}
-    
+
     # Parcourir les fichiers JSON du dossier Scrutins
     for file in sorted(os.listdir(SCRUTINS_FOLDER)):
         if file.endswith(".json"):
@@ -56,7 +56,7 @@ def calcul_votes():
 
                 # if not isinstance(groups, list):
                 #     groups = [groups]
-                
+
                 # Pour chaque groupe, extraire les votes
                 for group in groups:
 
@@ -76,7 +76,7 @@ def calcul_votes():
                             votants = vote_par_categorie[category]['votant']
                             if not isinstance(votants, list):
                                 votants = [votants]
-                            
+
                             # parcours des votants d'une catégorie
                             for votant in votants:
                                 acteur_ref = votant['acteurRef']
@@ -86,13 +86,13 @@ def calcul_votes():
 
                                 # profitons-en pour stocker le groupe parlementaire du votant
                                 votant_dict[acteur_ref] = group['organeRef']
-    
+
     # Créer le CSV avec en-têtes des scrutins et votes
     with open(VOTES_FILE, "w", encoding="utf-8", newline='') as f:
         # En-tête avec les UIDs des scrutins
         header = [''] + scrutins_list
         f.write(";".join(header) + "\n")
-        
+
         # Pour chaque votant, écrire son ID et ses votes
         for acteur_ref in sorted(votes_dict.keys()):
             row = [acteur_ref]
@@ -113,7 +113,7 @@ def calcul_distances():
     import numpy as np
 
     # Lecture du fichier CSV, la première colonne est utilisée comme index
-    df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
+    df = pd.read_csv(VOTES_FILE, sep=';', index_col=0) # noqa
 
     deputes = df.index
 
@@ -153,7 +153,7 @@ def umap_2d(input_csv=DISTANCES_FILE,
     import umap
 
     # Read the data
-    distances = pd.read_csv(input_csv, index_col=0)
+    distances = pd.read_csv(input_csv, index_col=0) # noqa
 
     reducer = umap.UMAP(
         n_components=2,
@@ -183,11 +183,12 @@ def mds_2d(distance_file,
     Réduit une matrice de distances avec MDS
     """
 
+    import numpy as np
     from sklearn.manifold import MDS
     import matplotlib.pyplot as plt
 
     # Matrice des distances
-    distances = pd.read_csv(distance_file, sep=';', header=0, index_col=0)
+    distances = pd.read_csv(distance_file, sep=';', header=0, index_col=0) # noqa
 
     # MDS
     mds = MDS(
@@ -218,21 +219,22 @@ def mds_2d(distance_file,
             color="steelblue"
         )
 
-        # Dictionnaire : identifiant -> couleur
-        groupes = pd.read_csv(GROUPES_FILE, sep=";")
-        organes = pd.read_csv(ORGANES_FILE, sep=";")
-
-        # deputes_couleur = dict(zip("PA"+df["identifiant"].astype(str), df["couleur"]))
+        # acteur > groupe> couleur
+        acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[1].to_dict() # noqa
+        organes                = pd.read_csv(ORGANES_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
+        groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
 
         # étiquetage
-        for name, (x, y) in embedding.iterrows():
+        for acteur_ref, (x, y) in embedding.iterrows():
+            acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
             plt.text(
                 x,
                 y,
-                name,
+                acteur_ref,
                 fontsize=10,
                 ha="left",
-                va="bottom"
+                va="bottom",
+                color=acteur_couleur
             )
 
         plt.xlabel("X")
