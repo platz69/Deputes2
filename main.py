@@ -183,9 +183,9 @@ def mds_2d(distance_file,
     Réduit une matrice de distances avec MDS
     """
 
-    import numpy as np
     from sklearn.manifold import MDS
     import matplotlib.pyplot as plt
+    import mplcursors
 
     # Matrice des distances
     distances = pd.read_csv(distance_file, sep=';', header=0, index_col=0) # noqa
@@ -217,25 +217,47 @@ def mds_2d(distance_file,
     if plot and n_components == 2:
         plt.figure(figsize=(8, 8))
 
+        fig, ax = plt.subplots()
+
+        xs = []
+        ys = []
+        colors = []
+        labels = []
+
         for acteur_ref, (x, y) in embedding.iterrows():
             acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
+            xs.append(x)
+            ys.append(y)
+            colors.append(acteur_couleur)
+            labels.append(acteur_ref)
 
-            plt.scatter(
-                x,
-                y,
-                s=80,
-                color=acteur_couleur
-            )
+        sc = ax.scatter(xs, ys, s=80, color=colors)
 
-            plt.text(
-                x,
-                y,
-                acteur_ref,
-                fontsize=10,
-                ha="left",
-                va="bottom",
-                color=acteur_couleur
-            )
+        cursor = mplcursors.cursor(sc, hover=True)
+
+        @cursor.connect("add")
+        def on_add(sel):
+            sel.annotation.set_text(labels[sel.index])
+
+        # for acteur_ref, (x, y) in embedding.iterrows():
+        #     acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
+        #
+        #     plt.scatter(
+        #         x,
+        #         y,
+        #         s=80,
+        #         color=acteur_couleur
+        #     )
+        #
+        #     plt.text(
+        #         x,
+        #         y,
+        #         acteur_ref,
+        #         fontsize=10,
+        #         ha="left",
+        #         va="bottom",
+        #         color=acteur_couleur
+        #     )
 
         plt.title("Projection MDS des votants")
         plt.axis("equal")
