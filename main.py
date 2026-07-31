@@ -217,27 +217,16 @@ def mds_2d(distance_file,
     if plot and n_components == 2:
         plt.figure(figsize=(8, 8))
 
-        # chaque point avec sa couleur :
         for acteur_ref, (x, y) in embedding.iterrows():
             acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
+
             plt.scatter(
                 x,
                 y,
                 s=80,
                 color=acteur_couleur
-            ) #, label=acteur_ref)
+            )
 
-        # tous les points de la même couleur
-        #  plt.scatter(
-        #     embedding["MDS1"],
-        #     embedding["MDS2"],
-        #     s=80,
-        #     color="steelblue"
-        # )
-
-        # étiquetage
-        for acteur_ref, (x, y) in embedding.iterrows():
-            acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
             plt.text(
                 x,
                 y,
@@ -245,11 +234,9 @@ def mds_2d(distance_file,
                 fontsize=10,
                 ha="left",
                 va="bottom",
-                color=acteur_couleur # colorie le label
+                color=acteur_couleur
             )
 
-        plt.xlabel("X")
-        plt.ylabel("Y")
         plt.title("Projection MDS des votants")
         plt.axis("equal")
         plt.tight_layout()
