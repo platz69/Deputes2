@@ -209,20 +209,31 @@ def mds_2d(distance_file,
     # Sauvegarde du fichier des coordonnées
     embedding.to_csv(COORDINATES_FILE, sep=';')
 
+    # acteur > groupe> couleur
+    acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[1].to_dict() # noqa
+    organes                = pd.read_csv(ORGANES_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
+    groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
+
     if plot and n_components == 2:
         plt.figure(figsize=(8, 8))
 
-        plt.scatter(
-            embedding["MDS1"],
-            embedding["MDS2"],
-            s=80,
-            color="steelblue"
-        )
+        # chaque point avec sa couleur :
+        for acteur_ref, (x, y) in embedding.iterrows():
+            acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
+            plt.scatter(
+                x,
+                y,
+                s=80,
+                color=acteur_couleur
+            ) #, label=acteur_ref)
 
-        # acteur > groupe> couleur
-        acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[1].to_dict() # noqa
-        organes                = pd.read_csv(ORGANES_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
-        groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
+        # tous les points de la même couleur
+        #  plt.scatter(
+        #     embedding["MDS1"],
+        #     embedding["MDS2"],
+        #     s=80,
+        #     color="steelblue"
+        # )
 
         # étiquetage
         for acteur_ref, (x, y) in embedding.iterrows():
@@ -234,7 +245,7 @@ def mds_2d(distance_file,
                 fontsize=10,
                 ha="left",
                 va="bottom",
-                color=acteur_couleur
+                color=acteur_couleur # colorie le label
             )
 
         plt.xlabel("X")
