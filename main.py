@@ -229,7 +229,10 @@ def mds_2d(distance_file,
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
-            labels.append(acteur_ref)
+            labels.append(str(acteur_ref)
+                          + " ("
+                          + organes[acteurs_groupes[acteur_ref]]
+                          + ")")
 
         sc = ax.scatter(xs, ys, s=80, color=colors)
 
