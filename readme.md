@@ -5,7 +5,7 @@ Ce script utilise les données publiques du site **data.assemblee-nationale.fr**
 Je m'intéresse plus particulièrement aux similitudes de comportement entre les votants afin de déterminer des groupes réels, indépendamment de l'étiquette politique revendiquée.
 
 Pour cela chaque député est représenté par un vecteur à +/- 4000 dimensions (nombre de scrutins dans une législature)
-puis un algorithme de type UMPA réduit cet espace à 2 dimensions afin de faire apparaître des groupes sur un graphique.
+puis un algorithme de type MDS réduit cet espace à 2 dimensions afin de faire apparaître des groupes sur un graphique.
 
 La régle de distance entre chaque député est calculée en fonction de leurs votes :
 - même vote : distance = +0
@@ -21,3 +21,14 @@ La régle de distance entre chaque député est calculée en fonction de leurs v
      "m": réduction de dimension par MDS
 
 **EXEMPLE DE RÉSULTAT**
+
+**FICHIERS UTILISÉS**
+
+https://data.assemblee-nationale.fr/acteurs/historique-des-deputes :
+AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip (13Mo)
+/json/acteur : 1 fichier PAxxxx.json pour chacun des  3117 députés existants/ayant existé
+/json/organe : 1 fichier POxxxx.json pour chacun des 10813 organes existants/ayant existé, en particulier 55 partis politiques identifiés par la balise json "codeType": "PARPOL"
+
+https://data.assemblee-nationale.fr/archives-16e/votes :
+Scrutins.json.zip
+/json : 1 fichier VTANR5L16Vxxxx.json pour chacun des 4106 scrutins de la XVIème législature (2017-2022)

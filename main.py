@@ -6,16 +6,16 @@ import json
 import pandas as pd
 
 # entrées
-SCRUTINS_FOLDER       = "Scrutins"
-ORGANES_FOLDER        = "Organes"
-GROUPES_COULEURS_FILE = "groupes_couleurs.csv"
+ORGANES_FOLDER        = "organes"              # dossier où l'on dépose les fichiers POxxxx.json
+SCRUTINS_FOLDER       = "scrutins"             # dossier où l'on dépose les fichiers VTANR5L16Vxxxx.json
+GROUPES_COULEURS_FILE = "groupes_couleurs.csv" # fichier où l'on choisit 1 couleur par parti politique
 
 # sorties
 ACTEURS_GROUP_FILE = "acteurs_groupes.csv"
-VOTES_FILE       = "votes.csv"
-DISTANCES_FILE   = "distances.csv"
-COORDINATES_FILE = "coordinates.csv"
-ORGANES_FILE     = "organes.csv"
+VOTES_FILE         = "votes.csv"
+DISTANCES_FILE     = "distances.csv"
+COORDINATES_FILE   = "coordinates.csv"
+ORGANES_FILE       = "organes.csv"
 
 
 def calcul_organes():
@@ -144,16 +144,12 @@ def calcul_distances():
     distance_df.to_csv(DISTANCES_FILE, sep=';')
 
 
-def umap_2d(input_csv=DISTANCES_FILE,
-            output_csv=COORDINATES_FILE,
-            n_neighbors=3, # increase to 15 (?) for 3000
-            min_dist=0,
-            random_state=42):
+def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
 
     import umap
 
     # Read the data
-    distances = pd.read_csv(input_csv, index_col=0) # noqa
+    distances = pd.read_csv(DISTANCES_FILE, index_col=0)
 
     reducer = umap.UMAP(
         n_components=2,
@@ -175,10 +171,7 @@ def umap_2d(input_csv=DISTANCES_FILE,
     result.to_csv(COORDINATES_FILE, sep=';')
 
 
-def mds_2d(distance_file,
-           n_components=2,
-           random_state=42,
-           plot=True):
+def mds_2d(n_components=2, random_state=42, plot=True):
     """
     Réduit une matrice de distances avec MDS
     """
@@ -188,7 +181,7 @@ def mds_2d(distance_file,
     import mplcursors
 
     # Matrice des distances
-    distances = pd.read_csv(distance_file, sep=';', header=0, index_col=0) # noqa
+    distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
 
     # MDS
     mds = MDS(
@@ -219,8 +212,8 @@ def mds_2d(distance_file,
 
         fig, ax = plt.subplots()
 
-        xs = []
-        ys = []
+        xs     = []
+        ys     = []
         colors = []
         labels = []
 
@@ -276,6 +269,6 @@ match choix:
     case "o": calcul_organes()
     case "v": calcul_votes()
     case "d": calcul_distances()
-    case "u": umap_2d(DISTANCES_FILE, COORDINATES_FILE)
-    case "m": mds_2d(DISTANCES_FILE)
+    case "u": umap_2d()
+    case "m": mds_2d()
 
