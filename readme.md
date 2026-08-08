@@ -2,7 +2,7 @@
 
 Ce script utilise les données publiques du site **data.assemblee-nationale.fr** afin de réaliser des statistiques sur les députés et votes en séance publique de l'Assemblée nationale.
 
-Je m'intéresse plus particulièrement aux similitudes de comportement entre les votants afin de déterminer des groupes réels, indépendamment de l'étiquette politique revendiquée.
+Je m'intéresse plus particulièrement aux similitudes de comportement entre les votants afin de déterminer des groupes réels, indépendamment de son groupe parlementaire.
 
 Pour cela chaque député est représenté par un vecteur à +/- 4000 dimensions (nombre de scrutins dans une législature)
 puis un algorithme de type MDS réduit cet espace à 2 dimensions afin de faire apparaître des groupes sur un graphique.
@@ -14,21 +14,23 @@ La régle de distance entre chaque député est calculée en fonction de leurs v
 
 **MODE D'EMPLOI**
 
-     "o": calcule les organes
-     "v": calcule les votes
-     "d": calcule les distances
+     "o": parcourt le répertoire "organes" pour produire un fichier organes.csv
+     "v": parcourt le répertoire "scrutins" pour produire un fichier votes.csv
+     "d": utilise le fichier "votes.csv" pour produire un fichier distances.csv
      "u": réduction de dimension par UMPA
-     "m": réduction de dimension par MDS
-
-**EXEMPLE DE RÉSULTAT**
+     "m": réduction de dimension par MDS et affichage du graphique
 
 **FICHIERS UTILISÉS**
 
 https://data.assemblee-nationale.fr/acteurs/historique-des-deputes :
 AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip (13Mo)
 /json/acteur : 1 fichier PAxxxx.json pour chacun des  3117 députés existants/ayant existé
-/json/organe : 1 fichier POxxxx.json pour chacun des 10813 organes existants/ayant existé, en particulier 55 partis politiques identifiés par la balise json "codeType": "PARPOL"
+/json/organe : 1 fichier POxxxx.json pour chacun des 10813 organes existants/ayant existé, en particulier 43 groupes parlementaires identifiés par la balise json "codeType": "GP"
 
 https://data.assemblee-nationale.fr/archives-16e/votes :
 Scrutins.json.zip
 /json : 1 fichier VTANR5L16Vxxxx.json pour chacun des 4106 scrutins de la XVIème législature (2017-2022)
+
+**EXEMPLE DE RÉSULTAT**
+
+![img.png](img.png)

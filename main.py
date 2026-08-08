@@ -8,14 +8,14 @@ import pandas as pd
 # entrées
 ORGANES_FOLDER        = "organes"              # dossier où l'on dépose les fichiers POxxxx.json
 SCRUTINS_FOLDER       = "scrutins"             # dossier où l'on dépose les fichiers VTANR5L16Vxxxx.json
-GROUPES_COULEURS_FILE = "groupes_couleurs.csv" # fichier où l'on choisit 1 couleur par parti politique
+GROUPES_COULEURS_FILE = "groupes_couleurs.csv" # id_groupe;libellé;couleur
 
 # sorties
-ACTEURS_GROUP_FILE = "acteurs_groupes.csv"
-VOTES_FILE         = "votes.csv"
-DISTANCES_FILE     = "distances.csv"
-COORDINATES_FILE   = "coordinates.csv"
-ORGANES_FILE       = "organes.csv"
+ACTEURS_GROUP_FILE = "acteurs_groupes.csv"     # id_acteur;id_groupe
+VOTES_FILE         = "votes.csv"               # id_acteur;vote1;vote2;...;vote4000;...
+DISTANCES_FILE     = "distances.csv"           # id_acteur;distance_acteur1;distance_acteur2;distance_acteur3;...
+COORDINATES_FILE   = "coordinates.csv"         # id_acteur;x;y
+ORGANES_FILE       = "organes.csv"             # id_organe;type_organe;libelle_abrev;libelle
 
 
 def calcul_organes():
@@ -39,9 +39,9 @@ def calcul_organes():
 def calcul_votes():
 
     # Dictionnaire pour stocker les votes : {acteurRef: {scrutin_uid: vote_value}}
-    votes_dict = {}
+    votes_dict    = {}
     scrutins_list = []
-    votant_dict = {}
+    votant_dict   = {}
 
     # Parcourir les fichiers JSON du dossier Scrutins
     for file in sorted(os.listdir(SCRUTINS_FOLDER)):
@@ -54,13 +54,10 @@ def calcul_votes():
                 data    = json.load(f)
                 groups  = data['scrutin']['ventilationVotes']['organe']['groupes']['groupe']
 
-                # if not isinstance(groups, list):
-                #     groups = [groups]
-
                 # Pour chaque groupe, extraire les votes
                 for group in groups:
 
-                    # Traiter les différentes catégories de vote
+                    # parcours des 4 catégories 'pours', 'contres', 'abstentions', 'nonVotants'
                     vote_value_map = {
                         'pours': 1,
                         'contres': -1,
@@ -68,7 +65,6 @@ def calcul_votes():
                         'nonVotants': 0
                     }
 
-                    # parcours des 4 catégories 'pours', 'contres', 'abstentions', 'nonVotants'
                     vote_par_categorie = group['vote']['decompteNominatif']
 
                     for category, vote_value in vote_value_map.items():
@@ -93,7 +89,7 @@ def calcul_votes():
         header = [''] + scrutins_list
         f.write(";".join(header) + "\n")
 
-        # Pour chaque votant, écrire son ID et ses votes
+        # Pour chaque votant, écrire une ligne avec son ID et ses votes
         for acteur_ref in sorted(votes_dict.keys()):
             row = [acteur_ref]
             for scrutin_uid in scrutins_list:
@@ -101,7 +97,7 @@ def calcul_votes():
                 row.append(str(vote_value) if vote_value != '' else '0')
             f.write(";".join(row) + "\n")
 
-    # Créer le CSV des ovtants_groupe parlementaire
+    # Créer le CSV des votants_groupe parlementaire
     with open(ACTEURS_GROUP_FILE, "w", encoding="utf-8", newline='') as f:
         for acteur_ref in sorted(votes_dict.keys()):
             f.write(";".join([acteur_ref, votant_dict[acteur_ref]]) + "\n")
