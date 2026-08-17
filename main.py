@@ -4,6 +4,8 @@ import json
 
 # bibliothèques externes
 import pandas as pd
+import matplotlib.pyplot as plt
+import mplcursors
 
 # entrées
 ORGANES_FOLDER        = "organes"              # dossier où l'on dépose les fichiers POxxxx.json
@@ -156,13 +158,8 @@ def calcul_distances():
             dist[i, j] = d
             dist[j, i] = d
 
-    # Conversion en DataFrame pour conserver les noms
+    # Sauvegarde du tableau des distances
     distance_df = pd.DataFrame(dist, index=deputes, columns=deputes)
-
-    # Affichage
-    print(distance_df)
-
-    # Sauvegarde éventuelle
     distance_df.to_csv(DISTANCES_FILE, sep=';')
 
 
@@ -170,7 +167,7 @@ def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
 
     import umap
 
-    # Read the data
+    # Chargement du tableau des distances
     distances = pd.read_csv(DISTANCES_FILE, index_col=0)
 
     reducer = umap.UMAP(
@@ -193,35 +190,30 @@ def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
     result.to_csv(COORDINATES_FILE, sep=';')
 
 
-def mds_2d(n_components=2, random_state=42, plot=True):
+def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
     """
     Réduit une matrice de distances avec MDS
     """
-
     from sklearn.manifold import MDS
-    import matplotlib.pyplot as plt
-    import mplcursors
 
-    # Matrice des distances
+    # Chargement du tableau des distances
     distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
 
     # MDS
     mds = MDS(
         n_components=n_components,
-        dissimilarity="precomputed",
-        random_state=random_state,
-        normalized_stress="auto"
+        dissimilarity=dissimilarity,
+        random_state=random_state
     )
 
     coords = mds.fit_transform(distances.values)
 
+    # Sauvegarde du fichier des coordonnées
     embedding = pd.DataFrame(
         coords,
         index=distances.index,
         columns=[f"MDS{i+1}" for i in range(n_components)]
     )
-
-    # Sauvegarde du fichier des coordonnées
     embedding.to_csv(COORDINATES_FILE, sep=';')
 
     # acteur > groupe> couleur
@@ -231,67 +223,97 @@ def mds_2d(n_components=2, random_state=42, plot=True):
     organes                = pd.read_csv(ORGANES_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
     groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
 
-    if plot and n_components == 2:
-        # plt.figure(figsize=(8, 8))
+    # plt.figure(figsize=(8, 8))
 
-        fig, ax = plt.subplots()
+    fig, ax = plt.subplots()
 
-        xs     = []
-        ys     = []
-        colors = []
-        labels = []
+    xs     = []
+    ys     = []
+    colors = []
+    labels = []
 
-        for acteur_ref, (x, y) in embedding.iterrows():
+    for acteur_ref, (x, y) in embedding.iterrows():
+        acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
+        xs.append(x)
+        ys.append(y)
+        colors.append(acteur_couleur)
+        labels.append(acteurs_prenom[acteur_ref]
+                      + " "
+                      + acteurs_nom[acteur_ref]
+                      + ", "
+                      + organes[acteurs_groupes[acteur_ref]])
+
+    sc = ax.scatter(xs, ys, s=80, color=colors)
+
+    cursor = mplcursors.cursor(sc, hover=True)
+
+    @cursor.connect("add")
+    def on_add(sel):
+        sel.annotation.set_text(labels[sel.index])
+
+    plt.title("Projection MDS des votants")
+    plt.axis("equal")
+    plt.tight_layout()
+    plt.show()
+
+    return
+
+
+def affiche_graphe():
+    """Lit COORDINATES_FILE et affiche le graphe 2D."""
+    try:
+        embedding = pd.read_csv(COORDINATES_FILE, sep=';', index_col=0)
+    except FileNotFoundError:
+        print(f"Fichier {COORDINATES_FILE} introuvable.")
+        return
+    except Exception as e:
+        print(f"Erreur en lisant {COORDINATES_FILE} : {e}")
+        return
+
+    # Chargement des tables auxiliaires
+    acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE, sep=';', header=None).set_index(0)[1].to_dict()
+    acteurs_nom            = pd.read_csv(ACTEURS_GROUP_FILE, sep=';', header=None).set_index(0)[2].to_dict()
+    acteurs_prenom         = pd.read_csv(ACTEURS_GROUP_FILE, sep=';', header=None).set_index(0)[3].to_dict()
+    organes                = pd.read_csv(ORGANES_FILE, sep=';', header=None).set_index(0)[2].to_dict()
+    groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[2].to_dict()
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    xs = []
+    ys = []
+    colors = []
+    labels = []
+
+    for acteur_ref, row in embedding.iterrows():
+        try:
+            x = row.iloc[0]
+            y = row.iloc[1]
             acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
-            labels.append(acteurs_prenom[acteur_ref]
-                          + " "
-                          + acteurs_nom[acteur_ref]
-                          + ", "
-                          + organes[acteurs_groupes[acteur_ref]])
+            labels.append(acteurs_prenom[acteur_ref] + " " + acteurs_nom[acteur_ref] + ", " + organes[acteurs_groupes[acteur_ref]])
+        except Exception:
+            # si un acteur manque dans les tables, on l'ignore
+            continue
 
-        sc = ax.scatter(xs, ys, s=80, color=colors)
+    sc = ax.scatter(xs, ys, s=80, color=colors, edgecolors='blue', linewidths=0.5)
 
-        cursor = mplcursors.cursor(sc, hover=True)
+    cursor = mplcursors.cursor(sc, hover=True)
 
-        @cursor.connect("add")
-        def on_add(sel):
-            sel.annotation.set_text(labels[sel.index])
+    @cursor.connect("add")
+    def on_add(sel):
+        sel.annotation.set_text(labels[sel.index])
 
-        # for acteur_ref, (x, y) in embedding.iterrows():
-        #     acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
-        #
-        #     plt.scatter(
-        #         x,
-        #         y,
-        #         s=80,
-        #         color=acteur_couleur
-        #     )
-        #
-        #     plt.text(
-        #         x,
-        #         y,
-        #         acteur_ref,
-        #         fontsize=10,
-        #         ha="left",
-        #         va="bottom",
-        #         color=acteur_couleur
-        #     )
-
-        plt.title("Projection MDS des votants")
-        plt.axis("equal")
-        plt.tight_layout()
-        plt.show()
-
-    return embedding
+    ax.set_title("Projection des votants")
+    ax.set_aspect('equal')
+    fig.tight_layout()
+    plt.show()
 
 
 def main():
     while True:
-        print("\n--- Menu Principal ---")
-        choix = input("o: organes, v: votes, d: distances, u: réduction UMAP, m: réduction MDS, q: quitter\n> ")
+        choix = input("VOTRE CHOIX : o: organes, v: votes, d: distances, u: réduction UMAP, m: réduction MDS, a: affiche graphe, q: quitter\n> ")
         
         match choix:
             case "o": calcul_organes()
@@ -300,7 +322,11 @@ def main():
             case "u":
                 print('Désactivé')
                 # umap_2d()
-            case "m": mds_2d()
+            case "m":
+                mds_2d()
+            case "a":
+                affiche_graphe()
+                break
             case "q": 
                 print("Au revoir!")
                 break
