@@ -11,7 +11,7 @@ SCRUTINS_FOLDER       = "scrutins"             # dossier où l'on dépose les fi
 GROUPES_COULEURS_FILE = "groupes_couleurs.csv" # id_groupe;libellé;couleur
 
 # sorties
-ACTEURS_GROUP_FILE = "acteurs_groupes.csv"     # id_acteur;id_groupe
+ACTEURS_GROUP_FILE = "acteurs_groupes.csv"     # id_acteur;id_groupe;nom;prenom
 VOTES_FILE         = "votes.csv"               # id_acteur;vote1;vote2;...;vote4000;...
 DISTANCES_FILE     = "distances.csv"           # id_acteur;distance_acteur1;distance_acteur2;distance_acteur3;...
 COORDINATES_FILE   = "coordinates.csv"         # id_acteur;x;y
@@ -36,6 +36,27 @@ def calcul_organes():
                     organe_file.write(";".join([organe, type_organe, libelle_abrev, libelle]) + "\n")
 
 
+def charger_noms_prenoms_acteurs():
+    """Charge les noms et prénoms des acteurs depuis les fichiers JSON"""
+    acteurs_info = {}
+    
+    for file in sorted(os.listdir("Acteurs")):
+        if file.endswith(".json"):
+            json_path = os.path.join("Acteurs", file)
+            try:
+                with open(json_path, encoding='utf-8') as f:
+                    data = json.load(f)
+                    acteur_uid = data['acteur']['uid']['#text']
+                    etat_civil = data['acteur']['etatCivil']['ident']
+                    nom = etat_civil.get('nom', '')
+                    prenom = etat_civil.get('prenom', '')
+                    acteurs_info[acteur_uid] = {'nom': nom, 'prenom': prenom}
+            except (KeyError, json.JSONDecodeError):
+                pass
+    
+    return acteurs_info
+
+
 def calcul_votes():
 
     # Dictionnaire pour stocker les votes : {acteurRef: {scrutin_uid: vote_value}}
@@ -43,9 +64,12 @@ def calcul_votes():
     scrutins_list = []
     votant_dict   = {}
 
+    # Charger les noms et prénoms des acteurs
+    acteurs_info = charger_noms_prenoms_acteurs()
+
     # Parcourir les fichiers JSON du dossier Scrutins
     for file in sorted(os.listdir(SCRUTINS_FOLDER)):
-        if file.endswith(".json"):
+        if file.endswith(".json") and file.startswith("VTA"): # attention il y a un fichier VTCxxx à éviter, on ne prend que les VTAxxx !
             scrutin_id = file.replace(".json", "")
             scrutins_list.append(scrutin_id)
 
@@ -97,12 +121,14 @@ def calcul_votes():
                 row.append(str(vote_value) if vote_value != '' else '0')
             f.write(";".join(row) + "\n")
 
-    # Créer le CSV des votants_groupe parlementaire
+    # Créer le CSV des votants_groupe parlementaire avec noms et prénoms
     with open(ACTEURS_GROUP_FILE, "w", encoding="utf-8", newline='') as f:
         for acteur_ref in sorted(votes_dict.keys()):
-            f.write(";".join([acteur_ref, votant_dict[acteur_ref]]) + "\n")
+            info = acteurs_info.get(acteur_ref, {'nom': '', 'prenom': ''})
+            f.write(";".join([acteur_ref, votant_dict[acteur_ref], info['nom'], info['prenom']]) + "\n")
 
     print(f"Fichier {VOTES_FILE} créé avec succès !")
+
 
 
 def calcul_distances():
@@ -118,7 +144,7 @@ def calcul_distances():
 
     # Nombre de points
     nb_deputes = df.shape[0]
-    nb_votes   = df.shape[1]
+    # nb_votes   = df.shape[1]
 
     # Matrice des distances
     dist = np.zeros((nb_deputes, nb_deputes), dtype=int)
@@ -200,11 +226,13 @@ def mds_2d(n_components=2, random_state=42, plot=True):
 
     # acteur > groupe> couleur
     acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[1].to_dict() # noqa
+    acteurs_nom            = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
+    acteurs_prenom         = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[3].to_dict() # noqa
     organes                = pd.read_csv(ORGANES_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
     groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
 
     if plot and n_components == 2:
-        plt.figure(figsize=(8, 8))
+        # plt.figure(figsize=(8, 8))
 
         fig, ax = plt.subplots()
 
@@ -218,10 +246,11 @@ def mds_2d(n_components=2, random_state=42, plot=True):
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
-            labels.append(str(acteur_ref)
-                          + " ("
-                          + organes[acteurs_groupes[acteur_ref]]
-                          + ")")
+            labels.append(acteurs_prenom[acteur_ref]
+                          + " "
+                          + acteurs_nom[acteur_ref]
+                          + ", "
+                          + organes[acteurs_groupes[acteur_ref]])
 
         sc = ax.scatter(xs, ys, s=80, color=colors)
 
@@ -256,15 +285,27 @@ def mds_2d(n_components=2, random_state=42, plot=True):
         plt.tight_layout()
         plt.show()
 
-    input('Continuer')
     return embedding
 
 
-choix = input("o: organes, v: votes, d: distances, u: réduction UMA, m: réduction MDS ")
-match choix:
-    case "o": calcul_organes()
-    case "v": calcul_votes()
-    case "d": calcul_distances()
-    case "u": umap_2d()
-    case "m": mds_2d()
+def main():
+    while True:
+        print("\n--- Menu Principal ---")
+        choix = input("o: organes, v: votes, d: distances, u: réduction UMAP, m: réduction MDS, q: quitter\n> ")
+        
+        match choix:
+            case "o": calcul_organes()
+            case "v": calcul_votes()
+            case "d": calcul_distances()
+            case "u":
+                print('Désactivé')
+                # umap_2d()
+            case "m": mds_2d()
+            case "q": 
+                print("Au revoir!")
+                break
+            case _: print("Choix invalide. Veuillez réessayer.")
 
+
+if __name__ == "__main__":
+    main()
