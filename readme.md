@@ -33,4 +33,4 @@ Scrutins.json.zip
 
 **EXEMPLE DE RÉSULTAT**
 
-![img.png](img.png)
+![Exemple de résultat.png](Exemple de résultat.png)
