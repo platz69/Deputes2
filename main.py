@@ -168,7 +168,7 @@ def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
     import umap
 
     # Chargement du tableau des distances
-    distances = pd.read_csv(DISTANCES_FILE, index_col=0)
+    distances = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
 
     reducer = umap.UMAP(
         n_components=2,
@@ -216,51 +216,13 @@ def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
     )
     embedding.to_csv(COORDINATES_FILE, sep=';')
 
-    # acteur > groupe> couleur
-    acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[1].to_dict() # noqa
-    acteurs_nom            = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
-    acteurs_prenom         = pd.read_csv(ACTEURS_GROUP_FILE, sep=";", header=None).set_index(0)[3].to_dict() # noqa
-    organes                = pd.read_csv(ORGANES_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
-    groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=";", header=None).set_index(0)[2].to_dict() # noqa
-
-    # plt.figure(figsize=(8, 8))
-
-    fig, ax = plt.subplots()
-
-    xs     = []
-    ys     = []
-    colors = []
-    labels = []
-
-    for acteur_ref, (x, y) in embedding.iterrows():
-        acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
-        xs.append(x)
-        ys.append(y)
-        colors.append(acteur_couleur)
-        labels.append(acteurs_prenom[acteur_ref]
-                      + " "
-                      + acteurs_nom[acteur_ref]
-                      + ", "
-                      + organes[acteurs_groupes[acteur_ref]])
-
-    sc = ax.scatter(xs, ys, s=80, color=colors)
-
-    cursor = mplcursors.cursor(sc, hover=True)
-
-    @cursor.connect("add")
-    def on_add(sel):
-        sel.annotation.set_text(labels[sel.index])
-
-    plt.title("Projection MDS des votants")
-    plt.axis("equal")
-    plt.tight_layout()
-    plt.show()
-
     return
 
 
 def affiche_graphe():
     """Lit COORDINATES_FILE et affiche le graphe 2D."""
+
+    # lecture du fichier des coordonnées
     try:
         embedding = pd.read_csv(COORDINATES_FILE, sep=';', index_col=0)
     except FileNotFoundError:
@@ -271,12 +233,13 @@ def affiche_graphe():
         return
 
     # Chargement des tables auxiliaires
-    acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE, sep=';', header=None).set_index(0)[1].to_dict()
-    acteurs_nom            = pd.read_csv(ACTEURS_GROUP_FILE, sep=';', header=None).set_index(0)[2].to_dict()
-    acteurs_prenom         = pd.read_csv(ACTEURS_GROUP_FILE, sep=';', header=None).set_index(0)[3].to_dict()
-    organes                = pd.read_csv(ORGANES_FILE, sep=';', header=None).set_index(0)[2].to_dict()
+    acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE,    sep=';', header=None).set_index(0)[1].to_dict()
+    acteurs_nom            = pd.read_csv(ACTEURS_GROUP_FILE,    sep=';', header=None).set_index(0)[2].to_dict()
+    acteurs_prenom         = pd.read_csv(ACTEURS_GROUP_FILE,    sep=';', header=None).set_index(0)[3].to_dict()
+    organes                = pd.read_csv(ORGANES_FILE,          sep=';', header=None).set_index(0)[2].to_dict()
     groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[2].to_dict()
 
+    # construction du graphe
     fig, ax = plt.subplots(figsize=(8, 8))
 
     xs = []
@@ -284,10 +247,8 @@ def affiche_graphe():
     colors = []
     labels = []
 
-    for acteur_ref, row in embedding.iterrows():
+    for acteur_ref, (x, y) in embedding.iterrows():
         try:
-            x = row.iloc[0]
-            y = row.iloc[1]
             acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_ref]]]
             xs.append(x)
             ys.append(y)
@@ -297,7 +258,7 @@ def affiche_graphe():
             # si un acteur manque dans les tables, on l'ignore
             continue
 
-    sc = ax.scatter(xs, ys, s=80, color=colors, edgecolors='blue', linewidths=0.5)
+    sc = ax.scatter(xs, ys, s=80, color=colors)
 
     cursor = mplcursors.cursor(sc, hover=True)
 
@@ -306,8 +267,8 @@ def affiche_graphe():
         sel.annotation.set_text(labels[sel.index])
 
     ax.set_title("Projection des votants")
-    ax.set_aspect('equal')
-    fig.tight_layout()
+    ax.set_aspect('equal', adjustable='box')
+    plt.tight_layout()
     plt.show()
 
 
@@ -320,15 +281,12 @@ def main():
             case "v": calcul_votes()
             case "d": calcul_distances()
             case "u":
-                print('Désactivé')
-                # umap_2d()
+                umap_2d()
             case "m":
                 mds_2d()
             case "a":
                 affiche_graphe()
-                break
-            case "q": 
-                print("Au revoir!")
+            case "q":
                 break
             case _: print("Choix invalide. Veuillez réessayer.")
 
