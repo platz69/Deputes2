@@ -33,4 +33,4 @@ Scrutins.json.zip
 
 **EXEMPLE DE RÉSULTAT**
 
-![Exemple de résultat.png](Exemple de résultat.png)
+![Exemple de résultat.png](Exemple de projection MDS.png)
