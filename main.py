@@ -129,9 +129,6 @@ def calcul_votes():
             info = acteurs_info.get(acteur_ref, {'nom': '', 'prenom': ''})
             f.write(";".join([acteur_ref, votant_dict[acteur_ref], info['nom'], info['prenom']]) + "\n")
 
-    print(f"Fichier {VOTES_FILE} créé avec succès !")
-
-
 
 def calcul_distances():
     import numpy as np
