@@ -5,7 +5,7 @@ Ce script utilise les données publiques du site **data.assemblee-nationale.fr**
 Je cherche à identifier les similitudes de comportement entre les votants (qui ne tienne donc pas compte des groupes parlementaires).
 
 Pour cela chaque député est représenté par un vecteur à +/- 4000 dimensions (nombre de scrutins dans une législature)
-puis un algorithme de type MDS réduit cet espace à 2 dimensions afin de faire apparaître des groupes sur un graphique.
+puis un algorithme UMAP ou MDS réduit cet espace à 3 dimensions afin de faire apparaître des nuages de points sur un graphique.
 
 La régle de distance entre chaque député est calculée en fonction de leurs votes :
 - même vote : distance = +0
@@ -13,6 +13,8 @@ La régle de distance entre chaque député est calculée en fonction de leurs v
 - 2 votes opposés : distance = +2
 
 **MODE D'EMPLOI**
+
+Les options ci-dessous sont à exécuter dans l'ordre, chacune produisant un ou plusieurs fichiers .csv nécessaires à l'étape suivante.
 
      "o": parcourt le répertoire "organes" pour produire un fichier organes.csv
      "v": parcourt le répertoire "scrutins" pour produire un fichier votes.csv
@@ -33,4 +35,4 @@ Scrutins.json.zip
 
 **EXEMPLE DE RÉSULTAT**
 
-![Exemple de projection UMAP](..\Exemple de projection UMAP.png)
+![projection_3d.html](..\projection_3d.html)
