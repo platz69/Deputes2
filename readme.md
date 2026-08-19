@@ -35,4 +35,10 @@ Scrutins.json.zip
 
 **EXEMPLE DE RÉSULTAT**
 
-![projection_3d.html](..\projection_3d.html)
+Capture écran :
+
+![projection_3d.png](projection_3d.png)
+
+Version interactive à télécharger :
+
+![projection_3d.html](projection_3d.html)

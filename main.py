@@ -2,24 +2,23 @@
 import os
 import json
 
-# bibliothèques externes
-import pandas as pd
-import matplotlib.pyplot as plt
-import umap
-import mplcursors
-
 # entrées
+ACTEURS_FOLDER        = "acteurs"              # dossier où l'on dépose les fichiers PAxxxx.json
 ORGANES_FOLDER        = "organes"              # dossier où l'on dépose les fichiers POxxxx.json
 SCRUTINS_FOLDER       = "scrutins"             # dossier où l'on dépose les fichiers VTANR5L16Vxxxx.json
 GROUPES_COULEURS_FILE = "groupes_couleurs.csv" # id_groupe;libellé;couleur
 
 # sorties
-ACTEURS_GROUP_FILE = "acteurs_groupes.csv"     # id_acteur;id_groupe;nom;prenom
-VOTES_FILE         = "votes.csv"               # id_acteur;vote1;vote2;...;vote4000;...
-DISTANCES_FILE     = "distances.csv"           # id_acteur;distance_acteur1;distance_acteur2;distance_acteur3;...
-COORDINATES_FILE   = "coordinates.csv"         # id_acteur;x;y
-COORDINATES_3D_FILE = "coordinates_3d.csv"     # id_acteur;x;y;z
-ORGANES_FILE       = "organes.csv"             # id_organe;type_organe;libelle_abrev;libelle
+TEMP_FOLDER         = "temp"                   # dossier temporaire pour les fichiers intermédiaires
+# créer le dossier temporaire s'il n'existe pas
+os.makedirs(TEMP_FOLDER, exist_ok=True)
+
+ACTEURS_GROUP_FILE  = os.path.join(TEMP_FOLDER, "acteurs_groupes.csv")    # id_acteur;id_groupe;nom;prenom
+VOTES_FILE          = os.path.join(TEMP_FOLDER, "votes.csv")              # id_acteur;vote1;vote2;...;vote4000;...
+DISTANCES_FILE      = os.path.join(TEMP_FOLDER, "distances.csv")          # id_acteur;distance_acteur1;distance_acteur2;distance_acteur3;...
+COORDINATES_FILE    = os.path.join(TEMP_FOLDER, "coordinates.csv")        # id_acteur;x;y
+COORDINATES_3D_FILE = os.path.join(TEMP_FOLDER, "coordinates_3d.csv")     # id_acteur;x;y;z
+ORGANES_FILE        = os.path.join(TEMP_FOLDER, "organes.csv")            # id_organe;type_organe;libelle_abrev;libelle
 
 
 def calcul_organes():
@@ -44,9 +43,9 @@ def charger_noms_prenoms_acteurs():
     """Charge les noms et prénoms des acteurs depuis les fichiers JSON"""
     acteurs_info = {}
     
-    for file in sorted(os.listdir("Acteurs")):
+    for file in sorted(os.listdir(ACTEURS_FOLDER)):
         if file.endswith(".json"):
-            json_path = os.path.join("Acteurs", file)
+            json_path = os.path.join(ACTEURS_FOLDER, file)
             try:
                 with open(json_path, encoding='utf-8') as f:
                     data = json.load(f)
@@ -63,7 +62,7 @@ def charger_noms_prenoms_acteurs():
 
 def calcul_votes():
 
-    # Dictionnaire pour stocker les votes : {acteurRef: {scrutin_uid: vote_value}}
+    # Dictionnaires
     votes_dict    = {}
     scrutins_list = []
     votant_dict   = {}
@@ -134,18 +133,14 @@ def calcul_votes():
 
 def calcul_distances():
     import numpy as np
+    import pandas as pd
 
     # Lecture du fichier CSV, la première colonne est utilisée comme index
     df = pd.read_csv(VOTES_FILE, sep=';', index_col=0) # noqa
 
     deputes = df.index
-
-    # Conversion en tableau NumPy
     votes = df.to_numpy()
-
-    # Nombre de points
     nb_deputes = df.shape[0]
-    # nb_votes   = df.shape[1]
 
     # Matrice des distances
     dist = np.zeros((nb_deputes, nb_deputes), dtype=int)
@@ -163,10 +158,13 @@ def calcul_distances():
 
 
 def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
+    import pandas as pd
+    import umap
 
     # Chargement du tableau des distances
     distances = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
 
+    # réduction en 2D avec UMAP
     reducer = umap.UMAP(
         n_components=2,
         metric="precomputed",
@@ -183,15 +181,21 @@ def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
         columns=["x", "y"]
     )
 
-    # Sauvegarde du fichier des coordonnées
-    result.to_csv(COORDINATES_FILE, sep=';')
+    # Arrondir les coordonnées à 2 décimales
+    result = result.round(2)
+
+    # Sauvegarde du fichier des coordonnées (2 décimales)
+    result.to_csv(COORDINATES_FILE, sep=';', float_format='%.2f')
 
 
 def umap_3d(n_neighbors=15, min_dist=0.1, random_state=42):
+    import pandas as pd
+    import umap
 
     # Chargement du tableau des distances
     distances = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
 
+    # réduction en 3D avec UMAP
     reducer = umap.UMAP(
         n_components=3,
         metric="precomputed",
@@ -208,20 +212,24 @@ def umap_3d(n_neighbors=15, min_dist=0.1, random_state=42):
         columns=["x", "y", "z"]
     )
 
-    # Sauvegarde du fichier des coordonnées 3D
-    result.to_csv(COORDINATES_3D_FILE, sep=';')
+    # Arrondir les coordonnées à 2 décimales
+    result = result.round(2)
+
+    # Sauvegarde du fichier des coordonnées 3D (2 décimales)
+    result.to_csv(COORDINATES_3D_FILE, sep=';', float_format='%.2f')
 
 
 def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
     """
     Réduit une matrice de distances avec MDS (2D)
     """
+    import pandas as pd
     from sklearn.manifold import MDS
 
     # Chargement du tableau des distances
     distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
 
-    # MDS
+    # réduction en 2D avec MDS
     mds = MDS(
         n_components=n_components,
         dissimilarity=dissimilarity,
@@ -236,7 +244,11 @@ def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
         index=distances.index,
         columns=[f"MDS{i+1}" for i in range(n_components)]
     )
-    embedding.to_csv(COORDINATES_FILE, sep=';')
+
+    # Arrondir les coordonnées à 2 décimales
+    embedding = embedding.round(2)
+
+    embedding.to_csv(COORDINATES_FILE, sep=';', float_format='%.2f')
 
     return
 
@@ -245,12 +257,13 @@ def mds_3d(n_components=3, dissimilarity="precomputed", random_state=42):
     """
     Réduit une matrice de distances avec MDS et produit coordinates_3d.csv (colonnes x;y;z)
     """
+    import pandas as pd
     from sklearn.manifold import MDS
 
     # Chargement du tableau des distances
     distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
 
-    # MDS en 3 dimensions
+    # réduction en 3D avec MDS
     mds = MDS(
         n_components=n_components,
         dissimilarity=dissimilarity,
@@ -265,13 +278,19 @@ def mds_3d(n_components=3, dissimilarity="precomputed", random_state=42):
         index=distances.index,
         columns=["x", "y", "z"]
     )
-    embedding.to_csv(COORDINATES_3D_FILE, sep=';')
+
+    # Arrondir les coordonnées à 2 décimales
+    embedding = embedding.round(2)
+
+    embedding.to_csv(COORDINATES_3D_FILE, sep=';', float_format='%.2f')
 
     return
 
 
-def affiche_graphe():
-    """Lit COORDINATES_FILE et affiche le graphe 2D."""
+def affiche_graphe_2d():
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import mplcursors
 
     # lecture du fichier des coordonnées
     try:
@@ -311,6 +330,7 @@ def affiche_graphe():
 
     sc = ax.scatter(xs, ys, s=80, color=colors)
 
+    # ajout des étiquettes au survol à la souris
     cursor = mplcursors.cursor(sc, hover=True)
 
     @cursor.connect("add")
@@ -324,12 +344,11 @@ def affiche_graphe():
 
 
 def affiche_graphe_3d():
-    """Lit COORDINATES_3D_FILE et affiche le graphe 3D interactif.
-
-    Sauvegarde également :
-    - projection_3d.png (image statique)
-    - projection_3d.html (interactive, si plotly est installé)
-    """
+    import pandas as pd
+    import matplotlib.pyplot as plt
+    import mplcursors
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    import plotly.graph_objects as go
 
     # lecture du fichier des coordonnées 3D
     try:
@@ -348,8 +367,7 @@ def affiche_graphe_3d():
     organes                = pd.read_csv(ORGANES_FILE,          sep=';', header=None).set_index(0)[2].to_dict()
     groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[2].to_dict()
 
-    # construction du graphe 3D (matplotlib)
-    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+    # construction du graphe 3D
     fig = plt.figure(figsize=(9, 7))
     ax = fig.add_subplot(111, projection='3d')
 
@@ -375,7 +393,7 @@ def affiche_graphe_3d():
 
     sc = ax.scatter(xs, ys, zs, s=60, c=colors, depthshade=True)
 
-    # mplcursors fonctionne aussi pour les scatters 3D
+    # ajout des étiquettes au survol à la souris
     cursor = mplcursors.cursor(sc, hover=True)
 
     @cursor.connect("add")
@@ -391,11 +409,7 @@ def affiche_graphe_3d():
 
     # export du graphe 3D en HTML interactif
     try:
-        import plotly.graph_objects as go
-        from plotly.offline import plot as plotly_plot
-
         hover_texts = labels
-
         trace = go.Scatter3d(
             x=xs,
             y=ys,
@@ -436,7 +450,7 @@ def main():
             case "m3":
                 mds_3d()
             case "a":
-                affiche_graphe()
+                affiche_graphe_2d()
             case "a3":
                 affiche_graphe_3d()
             case "q":
