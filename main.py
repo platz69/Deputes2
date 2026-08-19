@@ -10,18 +10,18 @@ GROUPES_COULEURS_FILE = "groupes_couleurs.csv" # id_groupe;libellé;couleur
 
 # sorties
 TEMP_FOLDER         = "temp"                   # dossier temporaire pour les fichiers intermédiaires
-# créer le dossier temporaire s'il n'existe pas
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 
-ACTEURS_GROUP_FILE  = os.path.join(TEMP_FOLDER, "acteurs_groupes.csv")    # id_acteur;id_groupe;nom;prenom
-VOTES_FILE          = os.path.join(TEMP_FOLDER, "votes.csv")              # id_acteur;vote1;vote2;...;vote4000;...
-DISTANCES_FILE      = os.path.join(TEMP_FOLDER, "distances.csv")          # id_acteur;distance_acteur1;distance_acteur2;distance_acteur3;...
-COORDINATES_FILE    = os.path.join(TEMP_FOLDER, "coordinates.csv")        # id_acteur;x;y
-COORDINATES_3D_FILE = os.path.join(TEMP_FOLDER, "coordinates_3d.csv")     # id_acteur;x;y;z
-ORGANES_FILE        = os.path.join(TEMP_FOLDER, "organes.csv")            # id_organe;type_organe;libelle_abrev;libelle
+ACTEURS_GROUP_FILE  = os.path.join(TEMP_FOLDER, "acteurs_groupes.csv") # id_acteur;id_groupe;nom;prenom
+VOTES_FILE          = os.path.join(TEMP_FOLDER, "votes.csv")           # id_acteur;vote1;vote2;...;vote4000;...
+DISTANCES_FILE      = os.path.join(TEMP_FOLDER, "distances.csv")       # id_acteur;distance_acteur1;distance_acteur2;distance_acteur3;...
+COORDINATES_FILE    = os.path.join(TEMP_FOLDER, "coordinates.csv")     # id_acteur;x;y
+COORDINATES_3D_FILE = os.path.join(TEMP_FOLDER, "coordinates_3d.csv")  # id_acteur;x;y;z
+ORGANES_FILE        = os.path.join(TEMP_FOLDER, "organes.csv")         # id_organe;type_organe;libelle_abrev;libelle
 
 
 def calcul_organes():
+    """Produit le fichier organes.csv à partir des fichiers JSON du dossier organes"""
 
     # ouverture du fichier organes en écriture
     with open(ORGANES_FILE, "w", encoding="utf-8", newline='') as organe_file:
@@ -40,7 +40,8 @@ def calcul_organes():
 
 
 def charger_noms_prenoms_acteurs():
-    """Charge les noms et prénoms des acteurs depuis les fichiers JSON"""
+    """Charge les noms et prénoms des acteurs depuis les fichiers JSON du dossier acteurs"""
+
     acteurs_info = {}
     
     for file in sorted(os.listdir(ACTEURS_FOLDER)):
@@ -61,16 +62,17 @@ def charger_noms_prenoms_acteurs():
 
 
 def calcul_votes():
+    """Produit le fichier votes.csv et acteurs_groupes.csv à partir des fichiers JSON du dossier scrutins"""
 
     # Dictionnaires
     votes_dict    = {}
     scrutins_list = []
     votant_dict   = {}
 
-    # Charger les noms et prénoms des acteurs
+    # Charge les noms et prénoms des acteurs
     acteurs_info = charger_noms_prenoms_acteurs()
 
-    # Parcourir les fichiers JSON du dossier Scrutins
+    # Parcourir les fichiers JSON du dossier scrutins
     for file in sorted(os.listdir(SCRUTINS_FOLDER)):
         if file.endswith(".json") and file.startswith("VTA"): # attention il y a un fichier VTCxxx à éviter, on ne prend que les VTAxxx !
             scrutin_id = file.replace(".json", "")
@@ -132,6 +134,7 @@ def calcul_votes():
 
 
 def calcul_distances():
+    """ Produit le fichier distances.csv à partir du fichier votes.csv """
     import numpy as np
     import pandas as pd
 
@@ -142,11 +145,12 @@ def calcul_distances():
     votes = df.to_numpy()
     nb_deputes = df.shape[0]
 
-    # Matrice des distances
+    # Initialisation de la matrice des distances avec des zéros
     dist = np.zeros((nb_deputes, nb_deputes), dtype=int)
 
     # Calcul des distances (même vote : +0, une abstention : +1, opposé : +2)
     for i in range(nb_deputes):
+        # la matrice est symétrique, on ne parcourt que la moitié supérieure
         for j in range(i, nb_deputes):
             d = np.sum(np.abs(votes[i,:] - votes[j,:]))
             dist[i, j] = d
@@ -158,6 +162,7 @@ def calcul_distances():
 
 
 def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
+    """ Produit le fichier coordinates.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
     import pandas as pd
     import umap
 
@@ -189,6 +194,7 @@ def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
 
 
 def umap_3d(n_neighbors=15, min_dist=0.1, random_state=42):
+    """Produit le fichier coordinates_3d.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
     import pandas as pd
     import umap
 
@@ -220,9 +226,7 @@ def umap_3d(n_neighbors=15, min_dist=0.1, random_state=42):
 
 
 def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
-    """
-    Réduit une matrice de distances avec MDS (2D)
-    """
+    """Produit le fichier coordinates.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
     import pandas as pd
     from sklearn.manifold import MDS
 
@@ -245,18 +249,15 @@ def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
         columns=[f"MDS{i+1}" for i in range(n_components)]
     )
 
-    # Arrondir les coordonnées à 2 décimales
+    # Arrondir les coordonnées à 2 décimales et sauvegarde
     embedding = embedding.round(2)
-
     embedding.to_csv(COORDINATES_FILE, sep=';', float_format='%.2f')
 
     return
 
 
 def mds_3d(n_components=3, dissimilarity="precomputed", random_state=42):
-    """
-    Réduit une matrice de distances avec MDS et produit coordinates_3d.csv (colonnes x;y;z)
-    """
+    """Produit le fichier coordinates_3d.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
     import pandas as pd
     from sklearn.manifold import MDS
 
@@ -279,28 +280,21 @@ def mds_3d(n_components=3, dissimilarity="precomputed", random_state=42):
         columns=["x", "y", "z"]
     )
 
-    # Arrondir les coordonnées à 2 décimales
+    # Arrondir les coordonnées à 2 décimales et sauvegarde
     embedding = embedding.round(2)
-
     embedding.to_csv(COORDINATES_3D_FILE, sep=';', float_format='%.2f')
 
     return
 
 
 def affiche_graphe_2d():
+    """Affiche un graphe 2D à partir du fichier coordinates.csv et des fichiers auxiliaires"""
     import pandas as pd
     import matplotlib.pyplot as plt
     import mplcursors
 
     # lecture du fichier des coordonnées
-    try:
-        embedding = pd.read_csv(COORDINATES_FILE, sep=';', index_col=0)
-    except FileNotFoundError:
-        print(f"Fichier {COORDINATES_FILE} introuvable.")
-        return
-    except Exception as e:
-        print(f"Erreur en lisant {COORDINATES_FILE} : {e}")
-        return
+    embedding = pd.read_csv(COORDINATES_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
     acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE,    sep=';', header=None).set_index(0)[1].to_dict()
@@ -344,6 +338,7 @@ def affiche_graphe_2d():
 
 
 def affiche_graphe_3d():
+    """Affiche un graphe 3D à partir du fichier coordinates_3d.csv et des fichiers auxiliaires"""
     import pandas as pd
     import matplotlib.pyplot as plt
     import mplcursors
@@ -351,14 +346,7 @@ def affiche_graphe_3d():
     import plotly.graph_objects as go
 
     # lecture du fichier des coordonnées 3D
-    try:
-        embedding = pd.read_csv(COORDINATES_3D_FILE, sep=';', index_col=0)
-    except FileNotFoundError:
-        print(f"Fichier {COORDINATES_3D_FILE} introuvable.")
-        return
-    except Exception as e:
-        print(f"Erreur en lisant {COORDINATES_3D_FILE} : {e}")
-        return
+    embedding = pd.read_csv(COORDINATES_3D_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
     acteurs_groupes        = pd.read_csv(ACTEURS_GROUP_FILE,    sep=';', header=None).set_index(0)[1].to_dict()
@@ -408,26 +396,23 @@ def affiche_graphe_3d():
     plt.tight_layout()
 
     # export du graphe 3D en HTML interactif
-    try:
-        hover_texts = labels
-        trace = go.Scatter3d(
-            x=xs,
-            y=ys,
-            z=zs,
-            mode='markers',
-            marker=dict(size=4, color=colors, opacity=0.8),
-            text=hover_texts,
-            hoverinfo='text'
-        )
+    hover_texts = labels
+    trace = go.Scatter3d(
+        x=xs,
+        y=ys,
+        z=zs,
+        mode='markers',
+        marker=dict(size=4, color=colors, opacity=0.8),
+        text=hover_texts,
+        hoverinfo='text'
+    )
 
-        layout = go.Layout(title='Projection 3D des votants', scene=dict(xaxis_title='x', yaxis_title='y', zaxis_title='z'))
-        fig_plotly = go.Figure(data=[trace], layout=layout)
+    layout = go.Layout(title='Projection 3D des votants', scene=dict(xaxis_title='x', yaxis_title='y', zaxis_title='z'))
+    fig_plotly = go.Figure(data=[trace], layout=layout)
 
-        html_name = 'projection_3d.html'
-        fig_plotly.write_html(html_name, include_plotlyjs='cdn')
-        print(f"Graphe 3D interactif sauvegardé en HTML : {html_name}")
-    except Exception as e:
-        print(f"Plotly non disponible ou erreur export HTML : {e}")
+    html_name = 'projection_3d.html'
+    fig_plotly.write_html(html_name, include_plotlyjs='cdn')
+    print(f"Graphe 3D interactif sauvegardé en HTML : {html_name}")
 
     # Enfin afficher la figure matplotlib (interaction via souris locale)
     plt.show()
