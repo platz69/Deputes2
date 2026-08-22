@@ -1,43 +1,43 @@
-AD;À Droite;skyblue
-AGIR-E;Agir ensemble;yellow
-CR;Député-e-s Communistes et Républicains;red
-DEM;Les Démocrates;yellow
-DR;Droite Républicaine;skyblue
-ECOLO;Écologiste;green
-ECOS;Écologiste et Social;green
-EDS;Écologie Démocratie Solidarité;green
-EPR;Ensemble pour la République;yellow
-FI;La France insoumise;red
-GDR-NUPES;Gauche démocrate et républicaine - NUPES;red
-GDR;Gauche Démocrate et Républicaine;red
-HOR;Horizons & Indépendants;yellow
-LAREM;La République en Marche;yellow
-LC;Les Constructifs : républicains, UDI, indépendants;skyblue
-LES-REP;Les Républicains;skyblue
-LFI-NFP;La France insoumise - Nouveau Front Populaire;red
-LFI-NUPES;La France insoumise - Nouvelle Union Populaire écologique et sociale;red
-LIOT;Libertés, Indépendants, Outre-mer et Territoires;black
-LR;Les Républicains;skyblue
-LT;Libertés et Territoires;yellow
-MODEM;Mouvement Démocrate et apparentés;yellow
-NC;Nouveau Centre;yellow
-NG;Nouvelle Gauche;pink
-NI;Non inscrit;black
-R-UMP;Rassemblement - Union pour un Mouvement Populaire;skyblue
-RE;Renaissance;yellow
-RN;Rassemblement National;blue
-RRDP;Radical, républicain, démocrate et progressiste;pink
-S.R.C.;Socialiste, radical, citoyen et divers gauche;pink
-SER;Socialiste, écologiste et républicain;pink
-SOC-A;Socialistes et apparentés;pink
-SOC;Socialistes et apparentés;pink
-SRC;Socialiste, républicain et citoyen;pink
-UDDPLR;Union des droites pour la République;skyblue
-UDF;Union pour la Démocratie Française;skyblue
-UDI-A-I;UDI, Agir et Indépendants;yellow
-UDI-AGIR;UDI, Agir et Indépendants;yellow
-UDI-I;UDI et Indépendants;yellow
-UDI;Union des démocrates et indépendants;yellow
-UDI_I;UDI et Indépendants;yellow
-UDR;Union des droites pour la République;skyblue
-UMP;Union pour un Mouvement Populaire;skyblue
+AD;À Droite;Droite;skyblue
+AGIR-E;Agir ensemble;Centre;yellow
+CR;Député-e-s Communistes et Républicains;Extrême-gauche;red
+DEM;Les Démocrates;Centre;yellow
+DR;Droite Républicaine;Droite;skyblue
+ECOLO;Écologiste;Écolo;green
+ECOS;Écologiste et Social;Écolo;green
+EDS;Écologie Démocratie Solidarité;Écolo;green
+EPR;Ensemble pour la République;Centre;yellow
+FI;La France insoumise;Extrême-gauche;red
+GDR-NUPES;Gauche démocrate et républicaine - NUPES;Extrême-gauche;red
+GDR;Gauche Démocrate et Républicaine;Extrême-gauche;red
+HOR;Horizons & Indépendants;Centre;yellow
+LAREM;La République en Marche;Centre;yellow
+LC;Les Constructifs : républicains, UDI, indépendants;Droite;skyblue
+LES-REP;Les Républicains;Droite;skyblue
+LFI-NFP;La France insoumise - Nouveau Front Populaire;Extrême-gauche;red
+LFI-NUPES;La France insoumise - Nouvelle Union Populaire écologique et sociale;Extrême-gauche;red
+LIOT;Libertés, Indépendants, Outre-mer et Territoires;Autre;black
+LR;Les Républicains;Droite;skyblue
+LT;Libertés et Territoires;Centre;yellow
+MODEM;Mouvement Démocrate et apparentés;Centre;yellow
+NC;Nouveau Centre;Centre;yellow
+NG;Nouvelle Gauche;Gauche;pink
+NI;Non inscrit;Autre;black
+R-UMP;Rassemblement - Union pour un Mouvement Populaire;Droite;skyblue
+RE;Renaissance;Centre;yellow
+RN;Rassemblement National;Extrême-droite;blue
+RRDP;Radical, républicain, démocrate et progressiste;Gauche;pink
+S.R.C.;Socialiste, radical, citoyen et divers gauche;Gauche;pink
+SER;Socialiste, écologiste et républicain;Gauche;pink
+SOC-A;Socialistes et apparentés;Gauche;pink
+SOC;Socialistes et apparentés;Gauche;pink
+SRC;Socialiste, républicain et citoyen;Gauche;pink
+UDDPLR;Union des droites pour la République;Droite;skyblue
+UDF;Union pour la Démocratie Française;Droite;skyblue
+UDI-A-I;UDI, Agir et Indépendants;Centre;yellow
+UDI-AGIR;UDI, Agir et Indépendants;Centre;yellow
+UDI-I;UDI et Indépendants;Centre;yellow
+UDI;Union des démocrates et indépendants;Centre;yellow
+UDI_I;UDI et Indépendants;Centre;yellow
+UDR;Union des droites pour la République;Droite;skyblue
+UMP;Union pour un Mouvement Populaire;Droite;skyblue

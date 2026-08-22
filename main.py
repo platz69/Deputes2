@@ -298,11 +298,11 @@ def affiche_graphe_2d():
     embedding = pd.read_csv(COORDINATES_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
-    acteurs_groupes        = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[1].to_dict()
-    acteurs_nom            = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[2].to_dict()
-    acteurs_prenom         = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[3].to_dict()
-    organes                = pd.read_csv(ORGANES_FILE,          sep=';', header=None).set_index(0)[2].to_dict()
-    groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[2].to_dict()
+    acteurs_groupes  = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[1].to_dict()
+    acteurs_nom      = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[2].to_dict()
+    acteurs_prenom   = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[3].to_dict()
+    organes          = pd.read_csv(ORGANES_FILE,          sep=';', header=None).set_index(0)[2].to_dict()
+    groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict()
 
     # construction du graphe
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -314,7 +314,7 @@ def affiche_graphe_2d():
 
     for acteur_id, (x, y) in embedding.iterrows():
         try:
-            acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupes[acteur_id]]]
+            acteur_couleur = groupes_couleurs[organes[acteurs_groupes[acteur_id]]]
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
@@ -354,7 +354,7 @@ def affiche_graphe_3d():
     acteurs_nom            = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[2].to_dict()
     acteurs_prenom         = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[3].to_dict()
     organes                = pd.read_csv(ORGANES_FILE,          sep=';', header=None).set_index(0)[2].to_dict()
-    groupes_abrev_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[2].to_dict()
+    groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict()
 
     # construction du graphe 3D
     fig = plt.figure(figsize=(9, 7))
@@ -371,7 +371,7 @@ def affiche_graphe_3d():
             x = row['x']
             y = row['y']
             z = row['z']
-            acteur_couleur = groupes_abrev_couleurs[organes[acteurs_groupe[acteur_id]]]
+            acteur_couleur = groupes_couleurs[organes[acteurs_groupe[acteur_id]]]
             xs.append(x)
             ys.append(y)
             zs.append(z)
