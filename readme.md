@@ -7,7 +7,7 @@ Je cherche à identifier les similitudes de comportement entre les votants (qui 
 Pour cela chaque député est représenté par un vecteur à +/- 4000 dimensions (nombre de scrutins dans une législature)
 puis un algorithme UMAP ou MDS réduit cet espace à 3 dimensions afin de faire apparaître des nuages de points sur un graphique.
 
-La régle de distance entre chaque député est calculée en fonction de leurs votes :
+La règle de distance entre chaque député est calculée en fonction de leurs votes :
 - même vote : distance = +0
 - 1 abstention/absence et un vote pour/contre : distance = +1
 - 2 votes opposés : distance = +2

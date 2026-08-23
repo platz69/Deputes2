@@ -3,9 +3,9 @@ import os
 import json
 
 # entrées
-ACTEURS_FOLDER        = "acteurs"              # dossier où l'on dépose les fichiers PAxxxx.json
-ORGANES_FOLDER        = "organes"              # dossier où l'on dépose les fichiers POxxxx.json
-SCRUTINS_FOLDER       = "scrutins"             # dossier où l'on dépose les fichiers VTANR5L16Vxxxx.json
+ACTEURS_FOLDER        = "acteur"              # dossier où l'on dépose les fichiers PAxxxx.json
+ORGANES_FOLDER        = "organe"              # dossier où l'on dépose les fichiers POxxxx.json
+SCRUTINS_FOLDER       = "scrutin"             # dossier où l'on dépose les fichiers VTANR5L16Vxxxx.json
 GROUPES_COULEURS_FILE = "groupes_couleurs.csv" # id_groupe;libellé;couleur
 
 # sorties
@@ -353,7 +353,7 @@ def affiche_graphe_3d():
     acteurs_groupe         = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[1].to_dict()
     acteurs_nom            = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[2].to_dict()
     acteurs_prenom         = pd.read_csv(ACTEURS_FILE,    sep=';', header=None).set_index(0)[3].to_dict()
-    organes                = pd.read_csv(ORGANES_FILE,          sep=';', header=None).set_index(0)[2].to_dict()
+    organes                = pd.read_csv(ORGANES_FILE,    sep=';', header=None).set_index(0)[2].to_dict()
     groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict()
 
     # construction du graphe 3D
