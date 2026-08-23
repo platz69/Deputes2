@@ -19,6 +19,7 @@ Les options ci-dessous sont à exécuter dans l'ordre, chacune produisant un ou 
      "o": parcourt le répertoire "organes" pour produire un fichier organes.csv
      "v": parcourt le répertoire "scrutins" pour produire un fichier votes.csv
      "d": utilise le fichier "votes.csv" pour produire un fichier distances.csv
+     "s": parcourt le répertoire "acteurs" pour produire un fichier acteurs.csv
      "u": réduction de dimension par UMPA
      "m": réduction de dimension par MDS et affichage du graphique
 

@@ -304,26 +304,46 @@ def affiche_graphe_2d():
     organes          = pd.read_csv(ORGANES_FILE,          sep=';', header=None).set_index(0)[2].to_dict()
     groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict()
 
+    # Lecture du nombre de votes par acteur pour dimensionner les points
+    try:
+        participation = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', index_col=0)
+        vote_counts = participation['nombre_de_votes'].to_dict()
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        vote_counts = {}
+
+    votes = list(vote_counts.values())
+    min_votes = min(votes) if votes else 0
+    max_votes = max(votes) if votes else 1
+
+    def point_size(acteur_id):
+        nb_votes = vote_counts.get(acteur_id, min_votes)
+        if max_votes == min_votes:
+            return 80
+        return 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
+
     # construction du graphe
     fig, ax = plt.subplots(figsize=(8, 8))
 
     xs = []
     ys = []
     colors = []
+    sizes = []
     labels = []
 
     for acteur_id, (x, y) in embedding.iterrows():
         try:
-            acteur_couleur = groupes_couleurs[organes[acteurs_groupes[acteur_id]]]
+            groupe_label = organes[acteurs_groupes[acteur_id]]
+            acteur_couleur = groupes_couleurs[groupe_label]
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
-            labels.append(acteurs_prenom[acteur_id] + " " + acteurs_nom[acteur_id] + ", " + organes[acteurs_groupes[acteur_id]])
-        except Exception:
+            sizes.append(point_size(acteur_id))
+            labels.append(acteurs_prenom[acteur_id] + " " + acteurs_nom[acteur_id] + ", " + groupe_label)
+        except (KeyError, TypeError, ValueError):
             # si un acteur manque dans les tables, on l'ignore
             continue
 
-    sc = ax.scatter(xs, ys, s=80, color=colors)
+    sc = ax.scatter(xs, ys, s=sizes, color=colors)
 
     # ajout des étiquettes au survol à la souris
     cursor = mplcursors.cursor(sc, hover=True)
@@ -356,6 +376,23 @@ def affiche_graphe_3d():
     organes                = pd.read_csv(ORGANES_FILE,    sep=';', header=None).set_index(0)[2].to_dict()
     groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict()
 
+    # Lecture du nombre de votes par acteur pour dimensionner les points
+    try:
+        participation = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', index_col=0)
+        vote_counts = participation['nombre_de_votes'].to_dict()
+    except (FileNotFoundError, OSError, ValueError, TypeError):
+        vote_counts = {}
+
+    votes = list(vote_counts.values())
+    min_votes = min(votes) if votes else 0
+    max_votes = max(votes) if votes else 1
+
+    def point_size(acteur_id):
+        nb_votes = vote_counts.get(acteur_id, min_votes)
+        if max_votes == min_votes:
+            return 60
+        return 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
+
     # construction du graphe 3D
     fig = plt.figure(figsize=(9, 7))
     ax = fig.add_subplot(111, projection='3d')
@@ -364,6 +401,7 @@ def affiche_graphe_3d():
     ys = []
     zs = []
     colors = []
+    sizes = []
     labels = []
 
     for acteur_id, row in embedding.iterrows():
@@ -371,16 +409,18 @@ def affiche_graphe_3d():
             x = row['x']
             y = row['y']
             z = row['z']
-            acteur_couleur = groupes_couleurs[organes[acteurs_groupe[acteur_id]]]
+            groupe_label = organes[acteurs_groupe[acteur_id]]
+            acteur_couleur = groupes_couleurs[groupe_label]
             xs.append(x)
             ys.append(y)
             zs.append(z)
             colors.append(acteur_couleur)
-            labels.append(acteurs_prenom[acteur_id] + " " + acteurs_nom[acteur_id] + ", " + acteur_id + ", " + organes[acteurs_groupe[acteur_id]])
-        except Exception:
+            sizes.append(point_size(acteur_id))
+            labels.append(acteurs_prenom[acteur_id] + " " + acteurs_nom[acteur_id] + ", " + acteur_id + ", " + groupe_label)
+        except (KeyError, TypeError, ValueError):
             continue
 
-    sc = ax.scatter(xs, ys, zs, s=60, c=colors, depthshade=True)
+    sc = ax.scatter(xs, ys, zs, s=sizes, c=colors, depthshade=True)
 
     # ajout des étiquettes au survol à la souris
     cursor = mplcursors.cursor(sc, hover=True)
@@ -389,7 +429,7 @@ def affiche_graphe_3d():
     def on_add(sel):
         try:
             sel.annotation.set_text(labels[sel.index])
-        except Exception:
+        except (IndexError, TypeError, ValueError):
             sel.annotation.set_text("")
 
     ax.set_title("Projection 3D des votants")
@@ -402,7 +442,7 @@ def affiche_graphe_3d():
         y=ys,
         z=zs,
         mode='markers',
-        marker=dict(size=4, color=colors, opacity=0.8),
+        marker=dict(size=sizes, color=colors, opacity=0.8),
         text=hover_texts,
         hoverinfo='text'
     )
@@ -419,7 +459,7 @@ def affiche_graphe_3d():
 
 
 def statistiques():
-    """Produit divers fichiers CSV de statistiques à partir du fichier votes.csv
+    """Produit le fichier acteurs_participation.csv à partir du fichier votes.csv
 
     Affiche dans la console les 5 acteurs ayant le plus participé et les 5 les plus absents
     (affichage en bleu). Affiche aussi les 5 paires d'acteurs les plus proches et les 5 les plus éloignées
