@@ -1,6 +1,7 @@
 # bibliothèques standard
 import os
 import json
+from typing import Dict
 
 # entrées
 ACTEURS_FOLDER        = "acteur"               # dossier où l'on dépose les fichiers PAxxxx.json
@@ -21,7 +22,7 @@ COORDONNES_3D_FILE    = os.path.join(TEMP_FOLDER, "coordonnes_3d.csv")    # id_a
 ORGANES_FILE          = os.path.join(TEMP_FOLDER, "organes.csv")          # id_organe;type_organe;libelle_abrev;libelle
 
 
-def calcul_organes():
+def calcul_organes() -> None:
     """Produit le fichier organes.csv à partir des fichiers JSON du dossier organes"""
 
     # ouverture du fichier organes en écriture
@@ -40,7 +41,7 @@ def calcul_organes():
                     organe_file.write(";".join([organe, type_organe, libelle_abrev, libelle]) + "\n")
 
 
-def charger_noms_prenoms_acteurs():
+def charger_noms_prenoms_acteurs() -> Dict[str, Dict[str, str]]:
     """Charge les noms et prénoms des acteurs depuis les fichiers JSON du dossier acteurs"""
 
     acteurs_info = {}
@@ -62,7 +63,7 @@ def charger_noms_prenoms_acteurs():
     return acteurs_info
 
 
-def calcul_votes():
+def calcul_votes() -> None:
     """Produit le fichier votes.csv et acteurs_groupes.csv à partir des fichiers JSON du dossier scrutins"""
 
     # Dictionnaires
@@ -134,7 +135,7 @@ def calcul_votes():
             f.write(";".join([acteur_id, votant_dict[acteur_id], info['nom'], info['prenom']]) + "\n")
 
 
-def calcul_distances():
+def calcul_distances() -> None:
     """ Produit le fichier distances.csv à partir du fichier votes.csv """
     import numpy as np
     import pandas as pd
@@ -162,7 +163,7 @@ def calcul_distances():
     distance_df.to_csv(DISTANCES_FILE, sep=';')
 
 
-def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
+def umap_2d(n_neighbors: int = 3, min_dist: float = 0, random_state: int = 42) -> None:
     """ Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
     import pandas as pd
     import umap
@@ -194,7 +195,7 @@ def umap_2d(n_neighbors=3, min_dist=0, random_state=42):
     result.to_csv(COORDONNES_FILE, sep=';', float_format='%.2f')
 
 
-def umap_3d(n_neighbors=15, min_dist=0.1, random_state=42):
+def umap_3d(n_neighbors: int = 15, min_dist: float = 0.1, random_state: int = 42) -> None:
     """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
     import pandas as pd
     import umap
@@ -226,7 +227,7 @@ def umap_3d(n_neighbors=15, min_dist=0.1, random_state=42):
     result.to_csv(COORDONNES_3D_FILE, sep=';', float_format='%.2f')
 
 
-def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
+def mds_2d(n_components: int = 2, dissimilarity: str = "precomputed", random_state: int = 42) -> None:
     """Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
     import pandas as pd
     from sklearn.manifold import MDS
@@ -257,7 +258,7 @@ def mds_2d(n_components=2, dissimilarity="precomputed", random_state=42):
     return
 
 
-def mds_3d(n_components=3, dissimilarity="precomputed", random_state=42):
+def mds_3d(n_components: int = 3, dissimilarity: str = "precomputed", random_state: int = 42) -> None:
     """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
     import pandas as pd
     from sklearn.manifold import MDS
@@ -288,7 +289,7 @@ def mds_3d(n_components=3, dissimilarity="precomputed", random_state=42):
     return
 
 
-def affiche_graphe_2d():
+def affiche_graphe_2d() -> None:
     """Affiche un graphe 2D à partir du fichier coordonnes.csv et des fichiers auxiliaires"""
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -315,8 +316,8 @@ def affiche_graphe_2d():
     min_votes = min(votes) if votes else 0
     max_votes = max(votes) if votes else 1
 
-    def point_size(acteur_id):
-        nb_votes = vote_counts.get(acteur_id, min_votes)
+    def point_size(act_id: str) -> float:
+        nb_votes = vote_counts.get(act_id, min_votes)
         if max_votes == min_votes:
             return 80
         return 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
@@ -349,7 +350,7 @@ def affiche_graphe_2d():
     cursor = mplcursors.cursor(sc, hover=True)
 
     @cursor.connect("add")
-    def on_add(sel):
+    def on_add(sel) -> None:
         sel.annotation.set_text(labels[sel.index])
 
     ax.set_title("Projection des votants")
@@ -358,7 +359,7 @@ def affiche_graphe_2d():
     plt.show()
 
 
-def affiche_graphe_3d():
+def affiche_graphe_3d() -> None:
     """Affiche un graphe 3D à partir du fichier coordonnes_3d.csv et des fichiers auxiliaires"""
     import pandas as pd
     import matplotlib.pyplot as plt
@@ -387,11 +388,11 @@ def affiche_graphe_3d():
     min_votes = min(votes) if votes else 0
     max_votes = max(votes) if votes else 1
 
-    def point_size(acteur_id):
+    def point_size(acteur_id: str) -> float:
         nb_votes = vote_counts.get(acteur_id, min_votes)
         if max_votes == min_votes:
-            return 60
-        return 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
+            return 60.0
+        return 20.0 + 200.0 * (nb_votes - min_votes) / (max_votes - min_votes)
 
     # construction du graphe 3D
     fig = plt.figure(figsize=(9, 7))
@@ -426,7 +427,7 @@ def affiche_graphe_3d():
     cursor = mplcursors.cursor(sc, hover=True)
 
     @cursor.connect("add")
-    def on_add(sel):
+    def on_add(sel) -> None:
         try:
             sel.annotation.set_text(labels[sel.index])
         except (IndexError, TypeError, ValueError):
@@ -458,8 +459,8 @@ def affiche_graphe_3d():
     plt.show()
 
 
-def statistiques():
-    """Produit le fichier acteurs_participation.csv à partir du fichier votes.csv
+def statistiques() -> None:
+    """Produit le fichier acteurs_particip.csv à partir du fichier votes.csv
 
     Affiche dans la console les 5 acteurs ayant le plus participé et les 5 les plus absents
     (affichage en bleu). Affiche aussi les 5 paires d'acteurs les plus proches et les 5 les plus éloignées
@@ -506,7 +507,7 @@ def statistiques():
     except Exception:
         organes_map = {}
 
-    def label_for(acteur_id):
+    def label_for(acteur_id: str) -> str:
         info = acteurs_info.get(acteur_id)
         name = None
         if info:
@@ -553,9 +554,6 @@ def statistiques():
         print(f"Erreur en lisant {DISTANCES_FILE} : {e}")
         return
 
-    # Assurer valeurs numériques
-    dist_df = dist_df.apply(pd.to_numeric, errors='coerce')
-
     pairs = []
     actors = list(dist_df.index)
     n = len(actors)
@@ -588,7 +586,7 @@ def statistiques():
         print(f"{i}. {label_for(a)}  -  {label_for(b)} : {d}")
 
 
-def main():
+def main() -> None:
     while True:
         choix = input("VOTRE CHOIX : o: organes, v: votes, d: distances, s: statistiques, u: réduction UMAP 2D, u3: réduction UMAP 3D, m: réduction MDS 2D, m3: réduction MDS 3D, a: affiche graphe 2D, a3: affiche graphe 3D, q: quitter\n> ")
         
