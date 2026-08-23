@@ -1,0 +1,3 @@
+modifier le claculee de la taille des points pour que le rayon soit prop à la racine carrée
+ajoute le nbde vootes sur l'étiquette du point
+factoriser
