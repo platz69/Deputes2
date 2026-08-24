@@ -3,6 +3,5 @@
 création d'un acteur virtuel qui représente le GP et calculer ses votes (somme des votes des acters du GP puis réduction à 1, 0 ou -1
 calculer la distance entre cet acteur virtuel et les autres acteurs pour voir qui est le plus proche et le plus éloigné du GP
 
-modifier le claculee de la taille des points pour que le rayon soit prop à la racine carrée
-ajoute le nbde vootes sur l'étiquette du point
-factoriser
+ajoute le nbde votes sur l'étiquette du point
+factoriser, exemple def label_for()

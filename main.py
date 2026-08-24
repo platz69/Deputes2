@@ -1,4 +1,5 @@
 # bibliothèques standard
+import math
 import os
 import json
 from typing import Dict
@@ -306,13 +307,10 @@ def affiche_graphe_2d() -> None:
     groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict()
 
     # Lecture du nombre de votes par acteur pour dimensionner les points
-    try:
-        participation = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', index_col=0)
-        vote_counts = participation['nombre_de_votes'].to_dict()
-    except (FileNotFoundError, OSError, ValueError, TypeError):
-        vote_counts = {}
+    participation = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', index_col=0)
+    vote_counts   = participation['nombre_de_votes'].to_dict()
 
-    votes = list(vote_counts.values())
+    votes     = list(vote_counts.values())
     min_votes = min(votes) if votes else 0
     max_votes = max(votes) if votes else 1
 
@@ -338,7 +336,7 @@ def affiche_graphe_2d() -> None:
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
-            sizes.append(point_size(acteur_id))
+            sizes.append(point_size(str(acteur_id)))
             labels.append(acteurs_prenom[acteur_id] + " " + acteurs_nom[acteur_id] + ", " + groupe_label)
         except (KeyError, TypeError, ValueError):
             # si un acteur manque dans les tables, on l'ignore
@@ -378,21 +376,16 @@ def affiche_graphe_3d() -> None:
     groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict()
 
     # Lecture du nombre de votes par acteur pour dimensionner les points
-    try:
-        participation = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', index_col=0)
-        vote_counts = participation['nombre_de_votes'].to_dict()
-    except (FileNotFoundError, OSError, ValueError, TypeError):
-        vote_counts = {}
+    participation = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', index_col=0)
+    vote_counts = participation['nombre_de_votes'].to_dict()
 
     votes = list(vote_counts.values())
-    min_votes = min(votes) if votes else 0
     max_votes = max(votes) if votes else 1
 
-    def point_size(acteur_id: str) -> float:
-        nb_votes = vote_counts.get(acteur_id, min_votes)
-        if max_votes == min_votes:
-            return 60.0
-        return 20.0 + 200.0 * (nb_votes - min_votes) / (max_votes - min_votes)
+    def point_size(act_id: str) -> int:
+        nb_votes = vote_counts.get(act_id, 0)
+        # return int(5.0 + 20 * math.sqrt((nb_votes / max_votes))) # tentative de taille proportionnelle à la participation
+        return 10
 
     # construction du graphe 3D
     fig = plt.figure(figsize=(9, 7))
@@ -416,7 +409,7 @@ def affiche_graphe_3d() -> None:
             ys.append(y)
             zs.append(z)
             colors.append(acteur_couleur)
-            sizes.append(point_size(acteur_id))
+            sizes.append(point_size(str(acteur_id)))
             labels.append(acteurs_prenom[acteur_id] + " " + acteurs_nom[acteur_id] + ", " + acteur_id + ", " + groupe_label)
         except (KeyError, TypeError, ValueError):
             continue
@@ -464,84 +457,58 @@ def statistiques() -> None:
 
     Affiche dans la console les 5 acteurs ayant le plus participé et les 5 les plus absents
     (affichage en bleu). Affiche aussi les 5 paires d'acteurs les plus proches et les 5 les plus éloignées
-    d'après DISTANCES_FILE. Ajoute le groupe parlementaire entre parenthèses après le prénom+nom."""
+    """
     import pandas as pd
     import os
 
-    try:
-        df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
-    except FileNotFoundError:
-        print(f"Fichier {VOTES_FILE} introuvable.")
-        return
-    except Exception as e:
-        print(f"Erreur en lisant {VOTES_FILE} : {e}")
-        return
+    df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
 
     # Convertir en numérique et remplacer les non-nombres par 0
-    df_num = df.apply(pd.to_numeric, errors='coerce').fillna(0).astype(int)
+    df_num = df.apply(pd.to_numeric, errors='coerce').astype(int).fillna(0)
 
-    # Une participation = vote != 0
+    # Participation = somme des valeurs non-nulles de la ligne
     participation = (df_num != 0).sum(axis=1)
 
-    # Écriture du fichier acteur_id;nombre_de_votes
+    # Écriture du fichier ACTEURS_PARTICIP_FILE
     with open(ACTEURS_PARTICIP_FILE, 'w', encoding='utf-8', newline='') as f:
         f.write("acteur_id;nombre_de_votes\n")
         for acteur, count in participation.items():
             f.write(f"{acteur};{count}\n")
 
-    print(f"Fichier de participation sauvegardé : {ACTEURS_PARTICIP_FILE}")
-
-    # Récupérer les noms/prénoms pour remplacer les IDs
+    # Dictionnaire acteur_id: nom + prénom
     acteurs_info = charger_noms_prenoms_acteurs()
 
-    # Récupérer le groupe parlementaire depuis ACTEURS_FILE et ORGANES_FILE
-    acteurs_groupes = {}
-    organes_map = {}
-    try:
-        acteurs_groupes = pd.read_csv(ACTEURS_FILE, sep=';', header=None).set_index(0)[1].to_dict()
-    except Exception:
-        acteurs_groupes = {}
-    try:
-        # colonne 3 contient le libellé complet du organe
-        organes_map = pd.read_csv(ORGANES_FILE, sep=';', header=None).set_index(0)[2].to_dict()
-    except Exception:
-        organes_map = {}
+    # Dictionnaire acteur_id : groupe_id
+    acteurs_groupes = pd.read_csv(ACTEURS_FILE, sep=';', header=None).set_index(0)[1].to_dict()
+
+    # Dictionnaire organe_id : libellé abrégé
+    organes_map = pd.read_csv(ORGANES_FILE, sep=';', header=None).set_index(0)[2].to_dict()
 
     def label_for(acteur_id: str) -> str:
-        info = acteurs_info.get(acteur_id)
-        name = None
-        if info:
-            prenom = (info.get('prenom') or '').strip()
-            nom = (info.get('nom') or '').strip()
-            full = (prenom + ' ' + nom).strip()
-            if full:
-                name = full
-        if not name:
-            name = acteur_id
+        info   = acteurs_info.get(acteur_id)
+        prenom = info.get('prenom').strip()
+        nom    = info.get('nom').strip()
+        name   = (prenom + ' ' + nom).strip()
 
-        # append group if available
-        grp_id = acteurs_groupes.get(acteur_id)
-        grp_label = None
-        if grp_id:
-            grp_label = organes_map.get(grp_id) or grp_id
-        if grp_label:
-            return f"{name} ({grp_label})"
-        return name
+        grp_id    = acteurs_groupes.get(acteur_id)
+        grp_label = organes_map.get(grp_id)
 
-    # Affichage des statistiques dans la console (bleu)
+        return f"{name} ({grp_label})"
+
+    # Pour l'affichage en bleu
     blue = '\033[34m'
     reset = '\033[0m'
 
-    top5 = participation.sort_values(ascending=False).head(5)
+    top5    = participation.sort_values(ascending=False).head(5)
     bottom5 = participation.sort_values(ascending=True).head(5)
 
     print(blue + "Top 5 des participants:" + reset)
     for i, (acteur, count) in enumerate(top5.items(), start=1):
-        print(f"{i}. {label_for(acteur)}: {count}")
+        print(f"{i}. {label_for(str(acteur))}: {count}")
 
     print(blue + "Top 5 des absents:" + reset)
     for i, (acteur, count) in enumerate(bottom5.items(), start=1):
-        print(f"{i}. {label_for(acteur)}: {count}")
+        print(f"{i}. {label_for(str(acteur))}: {count}")
 
     # Maintenant calculer les paires les plus proches/éloignées à partir de DISTANCES_FILE
     if not os.path.exists(DISTANCES_FILE):
@@ -549,33 +516,26 @@ def statistiques() -> None:
         return
 
     try:
-        dist_df = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
+        distances_df = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
     except Exception as e:
         print(f"Erreur en lisant {DISTANCES_FILE} : {e}")
         return
 
     pairs = []
-    actors = list(dist_df.index)
+    actors = list(distances_df.index)
     n = len(actors)
     for i in range(n):
-        for j in range(i+1, n):
-            a = actors[i]
-            b = actors[j]
-            try:
-                d = dist_df.iat[i, j]
-                if pd.isna(d):
-                    continue
-                pairs.append((a, b, float(d)))
-            except Exception:
-                continue
+        for j in range(i+1, n): # on ne prend que la moitié supérieure de cette matrice diagonale
+            d = distances_df.iat[i, j]
+            pairs.append((actors[i], actors[j], float(d)))
 
     if not pairs:
         print("Aucune paire trouvée dans le fichier des distances.")
         return
 
     pairs_sorted = sorted(pairs, key=lambda t: t[2])
-    closest5 = pairs_sorted[:5]
-    farthest5 = pairs_sorted[-5:][::-1]
+    closest5     = pairs_sorted[:5]
+    farthest5    = pairs_sorted[-5:][::-1]
 
     print(blue + "\n5 paires les plus proches (distance la plus petite):" + reset)
     for i, (a, b, d) in enumerate(closest5, start=1):
