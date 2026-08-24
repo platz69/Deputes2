@@ -1,3 +1,4 @@
+faire les factorisations proposées par Claude
 éviter les dstances 0 dans la  recherche couples proches
 
 création d'un acteur virtuel qui représente le GP et calculer ses votes (somme des votes des acters du GP puis réduction à 1, 0 ou -1

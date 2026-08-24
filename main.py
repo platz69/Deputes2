@@ -164,130 +164,246 @@ def calcul_distances() -> None:
     distance_df.to_csv(DISTANCES_FILE, sep=';')
 
 
-def umap_2d(n_neighbors: int = 3, min_dist: float = 0, random_state: int = 42) -> None:
-    """ Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
-    import pandas as pd
-    import umap
+def statistiques() -> None:
+    """Produit le fichier acteurs_particip.csv à partir du fichier votes.csv
 
-    # Chargement du tableau des distances
+    Affiche dans la console les 5 acteurs ayant le plus participé et les 5 les plus absents
+    (affichage en bleu). Affiche aussi les 5 paires d'acteurs les plus proches et les 5 les plus éloignées
+    """
+    import pandas as pd
+    import os
+
+    df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
+
+    # Convertir en numérique et remplacer les non-nombres par 0
+    df_num = df.apply(pd.to_numeric, errors='coerce').astype(int).fillna(0)
+
+    # Participation = somme des valeurs non-nulles de la ligne
+    participation = (df_num != 0).sum(axis=1)
+
+    # Écriture du fichier ACTEURS_PARTICIP_FILE
+    with open(ACTEURS_PARTICIP_FILE, 'w', encoding='utf-8', newline='') as f:
+        f.write("acteur_id;nombre_de_votes\n")
+        for acteur, count in participation.items():
+            f.write(f"{acteur};{count}\n")
+
+    # Dictionnaire acteur_id: nom + prénom
+    acteurs_info = charger_noms_prenoms_acteurs()
+
+    # Dictionnaire acteur_id : groupe_id
+    acteurs_groupes = pd.read_csv(ACTEURS_FILE, sep=';', header=None).set_index(0)[1].to_dict()
+
+    # Dictionnaire organe_id : libellé abrégé
+    organes_map = pd.read_csv(ORGANES_FILE, sep=';', header=None).set_index(0)[2].to_dict()
+
+    def label_for(acteur_id: str) -> str:
+        info   = acteurs_info.get(acteur_id)
+        prenom = info.get('prenom').strip()
+        nom    = info.get('nom').strip()
+        name   = (prenom + ' ' + nom).strip()
+
+        grp_id    = acteurs_groupes.get(acteur_id)
+        grp_label = organes_map.get(grp_id)
+
+        return f"{name} ({grp_label})"
+
+    # Pour l'affichage en bleu
+    blue = '\033[34m'
+    reset = '\033[0m'
+
+    top5    = participation.sort_values(ascending=False).head(5)
+    bottom5 = participation.sort_values(ascending=True).head(5)
+
+    print(blue + "Top 5 des participants:" + reset)
+    for i, (acteur, count) in enumerate(top5.items(), start=1):
+        print(f"{i}. {label_for(str(acteur))}: {count}")
+
+    print(blue + "Top 5 des absents:" + reset)
+    for i, (acteur, count) in enumerate(bottom5.items(), start=1):
+        print(f"{i}. {label_for(str(acteur))}: {count}")
+
+    # Maintenant calculer les paires les plus proches/éloignées à partir de DISTANCES_FILE
+    if not os.path.exists(DISTANCES_FILE):
+        print(f"Fichier des distances {DISTANCES_FILE} introuvable. Impossible de calculer les paires.")
+        return
+
+    try:
+        distances_df = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
+    except Exception as e:
+        print(f"Erreur en lisant {DISTANCES_FILE} : {e}")
+        return
+
+    pairs = []
+    actors = list(distances_df.index)
+    n = len(actors)
+    for i in range(n):
+        for j in range(i+1, n): # on ne prend que la moitié supérieure de cette matrice symétrique
+            d = distances_df.iat[i, j]
+            pairs.append((actors[i], actors[j], float(d)))
+
+    if not pairs:
+        print("Aucune paire trouvée dans le fichier des distances.")
+        return
+
+    pairs_sorted = sorted(pairs, key=lambda t: t[2])
+    closest5     = pairs_sorted[:5]
+    farthest5    = pairs_sorted[-5:][::-1]
+
+    print(blue + "\n5 paires les plus proches (distance la plus petite):" + reset)
+    for i, (a, b, d) in enumerate(closest5, start=1):
+        print(f"{i}. {label_for(a)}  -  {label_for(b)} : {d}")
+
+    print(blue + "\n5 paires les plus éloignées (distance la plus grande):" + reset)
+    for i, (a, b, d) in enumerate(farthest5, start=1):
+        print(f"{i}. {label_for(a)}  -  {label_for(b)} : {d}")
+
+# def umap_2d(n_neighbors: int = 3, min_dist: float = 0, random_state: int = 42) -> None:
+#     """ Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
+#     import pandas as pd
+#     import umap
+#
+#     # Chargement du tableau des distances
+#     distances = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
+#
+#     # réduction en 2D avec UMAP
+#     reducer = umap.UMAP(
+#         n_components=2,
+#         metric="precomputed",
+#         n_neighbors=n_neighbors,
+#         min_dist=min_dist,
+#         random_state=random_state
+#     )
+#
+#     reduc = reducer.fit_transform(distances)
+#
+#     result = pd.DataFrame(
+#         reduc,
+#         index=distances.index,
+#         columns=["x", "y"]
+#     )
+#
+#     # Arrondir les coordonnées à 2 décimales
+#     result = result.round(2)
+#
+#     # Sauvegarde du fichier des coordonnées (2 décimales)
+#     result.to_csv(COORDONNES_FILE, sep=';', float_format='%.2f')
+#
+#
+# def umap_3d(n_neighbors: int = 15, min_dist: float = 0.1, random_state: int = 42) -> None:
+#     """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
+#     import pandas as pd
+#     import umap
+#
+#     # Chargement du tableau des distances
+#     distances = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
+#
+#     # réduction en 3D avec UMAP
+#     reducer = umap.UMAP(
+#         n_components=3,
+#         metric="precomputed",
+#         n_neighbors=n_neighbors,
+#         min_dist=min_dist,
+#         random_state=random_state
+#     )
+#
+#     reduc = reducer.fit_transform(distances)
+#
+#     result = pd.DataFrame(
+#         reduc,
+#         index=distances.index,
+#         columns=["x", "y", "z"]
+#     )
+#
+#     # Arrondir les coordonnées à 2 décimales
+#     result = result.round(2)
+#
+#     # Sauvegarde du fichier des coordonnées 3D (2 décimales)
+#     result.to_csv(COORDONNES_3D_FILE, sep=';', float_format='%.2f')
+#
+#
+# def mds_2d(n_components: int = 2, dissimilarity: str = "precomputed", random_state: int = 42) -> None:
+#     """Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
+#     import pandas as pd
+#     from sklearn.manifold import MDS
+#
+#     # Chargement du tableau des distances
+#     distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
+#
+#     # réduction en 2D avec MDS
+#     mds = MDS(
+#         n_components=n_components,
+#         dissimilarity=dissimilarity,
+#         random_state=random_state
+#     )
+#
+#     coords = mds.fit_transform(distances.values)
+#
+#     # Sauvegarde du fichier des coordonnées
+#     embedding = pd.DataFrame(
+#         coords,
+#         index=distances.index,
+#         columns=[f"MDS{i+1}" for i in range(n_components)]
+#     )
+#
+#     # Arrondir les coordonnées à 2 décimales et sauvegarde
+#     embedding = embedding.round(2)
+#     embedding.to_csv(COORDONNES_FILE, sep=';', float_format='%.2f')
+#
+#     return
+#
+#
+# def mds_3d(n_components: int = 3, dissimilarity: str = "precomputed", random_state: int = 42) -> None:
+#     """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
+#     import pandas as pd
+#     from sklearn.manifold import MDS
+#
+#     # Chargement du tableau des distances
+#     distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
+#
+#     # réduction en 3D avec MDS
+#     mds = MDS(
+#         n_components=n_components,
+#         dissimilarity=dissimilarity,
+#         random_state=random_state
+#     )
+#
+#     coords = mds.fit_transform(distances.values)
+#
+#     # Sauvegarde du fichier des coordonnées 3D
+#     embedding = pd.DataFrame(
+#         coords,
+#         index=distances.index,
+#         columns=["x", "y", "z"]
+#     )
+#
+#     # Arrondir les coordonnées à 2 décimales et sauvegarde
+#     embedding = embedding.round(2)
+#     embedding.to_csv(COORDONNES_3D_FILE, sep=';', float_format='%.2f')
+#
+#     return
+
+
+def reduire(algo: str, n_components: int, **kwargs) -> None:
+    """Produit coordonnes.csv (2D) ou coordonnes_3d.csv (3D) via UMAP ou MDS"""
+    import pandas as pd
+
     distances = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
 
-    # réduction en 2D avec UMAP
-    reducer = umap.UMAP(
-        n_components=2,
-        metric="precomputed",
-        n_neighbors=n_neighbors,
-        min_dist=min_dist,
-        random_state=random_state
-    )
+    if algo == "umap":
+        import umap
+        reducer = umap.UMAP(n_components=n_components, metric="precomputed", **kwargs)
+    elif algo == "mds":
+        from sklearn.manifold import MDS
+        reducer = MDS(n_components=n_components, dissimilarity="precomputed", **kwargs)
+    else:
+        raise ValueError(f"algo inconnu: {algo}")
 
-    reduc = reducer.fit_transform(distances)
+    coords = reducer.fit_transform(distances if algo == "mds" else distances)
+    columns = ["x", "y"] if n_components == 2 else ["x", "y", "z"]
+    result = pd.DataFrame(coords, index=distances.index, columns=columns).round(2)
 
-    result = pd.DataFrame(
-        reduc,
-        index=distances.index,
-        columns=["x", "y"]
-    )
-
-    # Arrondir les coordonnées à 2 décimales
-    result = result.round(2)
-
-    # Sauvegarde du fichier des coordonnées (2 décimales)
-    result.to_csv(COORDONNES_FILE, sep=';', float_format='%.2f')
-
-
-def umap_3d(n_neighbors: int = 15, min_dist: float = 0.1, random_state: int = 42) -> None:
-    """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
-    import pandas as pd
-    import umap
-
-    # Chargement du tableau des distances
-    distances = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
-
-    # réduction en 3D avec UMAP
-    reducer = umap.UMAP(
-        n_components=3,
-        metric="precomputed",
-        n_neighbors=n_neighbors,
-        min_dist=min_dist,
-        random_state=random_state
-    )
-
-    reduc = reducer.fit_transform(distances)
-
-    result = pd.DataFrame(
-        reduc,
-        index=distances.index,
-        columns=["x", "y", "z"]
-    )
-
-    # Arrondir les coordonnées à 2 décimales
-    result = result.round(2)
-
-    # Sauvegarde du fichier des coordonnées 3D (2 décimales)
-    result.to_csv(COORDONNES_3D_FILE, sep=';', float_format='%.2f')
-
-
-def mds_2d(n_components: int = 2, dissimilarity: str = "precomputed", random_state: int = 42) -> None:
-    """Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
-    import pandas as pd
-    from sklearn.manifold import MDS
-
-    # Chargement du tableau des distances
-    distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
-
-    # réduction en 2D avec MDS
-    mds = MDS(
-        n_components=n_components,
-        dissimilarity=dissimilarity,
-        random_state=random_state
-    )
-
-    coords = mds.fit_transform(distances.values)
-
-    # Sauvegarde du fichier des coordonnées
-    embedding = pd.DataFrame(
-        coords,
-        index=distances.index,
-        columns=[f"MDS{i+1}" for i in range(n_components)]
-    )
-
-    # Arrondir les coordonnées à 2 décimales et sauvegarde
-    embedding = embedding.round(2)
-    embedding.to_csv(COORDONNES_FILE, sep=';', float_format='%.2f')
-
-    return
-
-
-def mds_3d(n_components: int = 3, dissimilarity: str = "precomputed", random_state: int = 42) -> None:
-    """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
-    import pandas as pd
-    from sklearn.manifold import MDS
-
-    # Chargement du tableau des distances
-    distances = pd.read_csv(DISTANCES_FILE, sep=';', header=0, index_col=0)
-
-    # réduction en 3D avec MDS
-    mds = MDS(
-        n_components=n_components,
-        dissimilarity=dissimilarity,
-        random_state=random_state
-    )
-
-    coords = mds.fit_transform(distances.values)
-
-    # Sauvegarde du fichier des coordonnées 3D
-    embedding = pd.DataFrame(
-        coords,
-        index=distances.index,
-        columns=["x", "y", "z"]
-    )
-
-    # Arrondir les coordonnées à 2 décimales et sauvegarde
-    embedding = embedding.round(2)
-    embedding.to_csv(COORDONNES_3D_FILE, sep=';', float_format='%.2f')
-
-    return
+    out_file = COORDONNES_FILE if n_components == 2 else COORDONNES_3D_FILE
+    result.to_csv(out_file, sep=';', float_format='%.2f')
 
 
 def affiche_graphe_2d() -> None:
@@ -452,100 +568,6 @@ def affiche_graphe_3d() -> None:
     plt.show()
 
 
-def statistiques() -> None:
-    """Produit le fichier acteurs_particip.csv à partir du fichier votes.csv
-
-    Affiche dans la console les 5 acteurs ayant le plus participé et les 5 les plus absents
-    (affichage en bleu). Affiche aussi les 5 paires d'acteurs les plus proches et les 5 les plus éloignées
-    """
-    import pandas as pd
-    import os
-
-    df = pd.read_csv(VOTES_FILE, sep=';', index_col=0)
-
-    # Convertir en numérique et remplacer les non-nombres par 0
-    df_num = df.apply(pd.to_numeric, errors='coerce').astype(int).fillna(0)
-
-    # Participation = somme des valeurs non-nulles de la ligne
-    participation = (df_num != 0).sum(axis=1)
-
-    # Écriture du fichier ACTEURS_PARTICIP_FILE
-    with open(ACTEURS_PARTICIP_FILE, 'w', encoding='utf-8', newline='') as f:
-        f.write("acteur_id;nombre_de_votes\n")
-        for acteur, count in participation.items():
-            f.write(f"{acteur};{count}\n")
-
-    # Dictionnaire acteur_id: nom + prénom
-    acteurs_info = charger_noms_prenoms_acteurs()
-
-    # Dictionnaire acteur_id : groupe_id
-    acteurs_groupes = pd.read_csv(ACTEURS_FILE, sep=';', header=None).set_index(0)[1].to_dict()
-
-    # Dictionnaire organe_id : libellé abrégé
-    organes_map = pd.read_csv(ORGANES_FILE, sep=';', header=None).set_index(0)[2].to_dict()
-
-    def label_for(acteur_id: str) -> str:
-        info   = acteurs_info.get(acteur_id)
-        prenom = info.get('prenom').strip()
-        nom    = info.get('nom').strip()
-        name   = (prenom + ' ' + nom).strip()
-
-        grp_id    = acteurs_groupes.get(acteur_id)
-        grp_label = organes_map.get(grp_id)
-
-        return f"{name} ({grp_label})"
-
-    # Pour l'affichage en bleu
-    blue = '\033[34m'
-    reset = '\033[0m'
-
-    top5    = participation.sort_values(ascending=False).head(5)
-    bottom5 = participation.sort_values(ascending=True).head(5)
-
-    print(blue + "Top 5 des participants:" + reset)
-    for i, (acteur, count) in enumerate(top5.items(), start=1):
-        print(f"{i}. {label_for(str(acteur))}: {count}")
-
-    print(blue + "Top 5 des absents:" + reset)
-    for i, (acteur, count) in enumerate(bottom5.items(), start=1):
-        print(f"{i}. {label_for(str(acteur))}: {count}")
-
-    # Maintenant calculer les paires les plus proches/éloignées à partir de DISTANCES_FILE
-    if not os.path.exists(DISTANCES_FILE):
-        print(f"Fichier des distances {DISTANCES_FILE} introuvable. Impossible de calculer les paires.")
-        return
-
-    try:
-        distances_df = pd.read_csv(DISTANCES_FILE, sep=';', index_col=0)
-    except Exception as e:
-        print(f"Erreur en lisant {DISTANCES_FILE} : {e}")
-        return
-
-    pairs = []
-    actors = list(distances_df.index)
-    n = len(actors)
-    for i in range(n):
-        for j in range(i+1, n): # on ne prend que la moitié supérieure de cette matrice diagonale
-            d = distances_df.iat[i, j]
-            pairs.append((actors[i], actors[j], float(d)))
-
-    if not pairs:
-        print("Aucune paire trouvée dans le fichier des distances.")
-        return
-
-    pairs_sorted = sorted(pairs, key=lambda t: t[2])
-    closest5     = pairs_sorted[:5]
-    farthest5    = pairs_sorted[-5:][::-1]
-
-    print(blue + "\n5 paires les plus proches (distance la plus petite):" + reset)
-    for i, (a, b, d) in enumerate(closest5, start=1):
-        print(f"{i}. {label_for(a)}  -  {label_for(b)} : {d}")
-
-    print(blue + "\n5 paires les plus éloignées (distance la plus grande):" + reset)
-    for i, (a, b, d) in enumerate(farthest5, start=1):
-        print(f"{i}. {label_for(a)}  -  {label_for(b)} : {d}")
-
-
 def main() -> None:
     while True:
         choix = input("VOTRE CHOIX : o: organes, v: votes, d: distances, s: statistiques, u: réduction UMAP 2D, u3: réduction UMAP 3D, m: réduction MDS 2D, m3: réduction MDS 3D, a: affiche graphe 2D, a3: affiche graphe 3D, q: quitter\n> ")
@@ -556,13 +578,17 @@ def main() -> None:
             case "d": calcul_distances()
             case "s": statistiques()
             case "u":
-                umap_2d()
+                # umap_2d()
+                reduire('umap', n_components=2, n_neighbors=3, min_dist=0, random_state=42)
             case "u3":
-                umap_3d()
+                # umap_3d()
+                reduire('umap', n_components=3, n_neighbors=15, min_dist=0.1, random_state=42)
             case "m":
-                mds_2d()
+                # mds_2d()
+                reduire('mds', n_components=2, random_state=42)
             case "m3":
-                mds_3d()
+                # mds_3d()
+                reduire('mds', n_components=3, random_state=42)
             case "a":
                 affiche_graphe_2d()
             case "a3":
