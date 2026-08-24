@@ -398,7 +398,7 @@ def reduire(algo: str, n_components: int, **kwargs) -> None:
     else:
         raise ValueError(f"algo inconnu: {algo}")
 
-    coords = reducer.fit_transform(distances if algo == "mds" else distances)
+    coords = reducer.fit_transform(distances)
     columns = ["x", "y"] if n_components == 2 else ["x", "y", "z"]
     result = pd.DataFrame(coords, index=distances.index, columns=columns).round(2)
 
@@ -432,9 +432,7 @@ def affiche_graphe_2d() -> None:
 
     def point_size(act_id: str) -> float:
         nb_votes = vote_counts.get(act_id, min_votes)
-        if max_votes == min_votes:
-            return 80
-        return 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
+        return 80 if max_votes == min_votes else 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
 
     # construction du graphe
     fig, ax = plt.subplots(figsize=(8, 8))
