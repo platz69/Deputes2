@@ -1,6 +1,7 @@
 # répertoires
+/.idea
+/_data.assemblee-nationale.fr/
 /scrutin/
 /temp/
 
 # fichiers
-/Feuille de contrôle.xlsx
