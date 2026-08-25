@@ -1,0 +1,3 @@
+toutes les chaînes entre '', "" si la chaîne contient une apostrophe
+CSV avec en-tête, exemple acteur_id;organe_id
+machin_id et pas id_machin
