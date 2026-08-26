@@ -1,3 +1,5 @@
+refaire la feuille de contriole y a pas PO800496
+faire 1 passe globale sur le dosiser acteur (sans organe ?) pour aligner avec comportementdes organe
 découper statistiques() qui fait des trucs differents
 factoriser, exemple def label_for()
 
