@@ -33,35 +33,14 @@ green = '\033[32m'
 reset = '\033[0m'
 
 
-def charger_csv(fichier: str):
-    """Charge une table auxiliaire CSV (';') et la retourne sous forme de dict.
-    - table à une seule colonne de valeur  -> {index_col: value_col}
-    - table à plusieurs colonnes de valeur -> {colonne: {index_col: colonne}, ...}
-      (dict de dicts ; ACTEURS_FILE est alors relu une fois par colonne)
-    """
-    if fichier == ACTEURS_FILE:
-        return {col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
-                for col in ['groupe_id', 'nom', 'prenom']}
-    elif fichier == ORGANES_FILE:
-        return pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
-    elif fichier == GROUPES_COULEURS_FILE:
-        return pd.read_csv(GROUPES_COULEURS_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
-    elif fichier == ACTEUR_LABEL_FILE:
-        return pd.read_csv(ACTEUR_LABEL_FILE, sep=';').set_index('acteur_id')['label'].to_dict()
-    elif fichier == ACTEURS_PARTICIP_FILE:
-        return pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
-    else:
-        raise ValueError(f'table auxiliaire inconnue : {fichier}')
+def traitement_dossier_organe() -> None:
+    """Produit le fichier ORGANES_FILE à partir des fichiers JSON du répertoire ORGANES_FOLDER"""
 
-
-def calcul_organes() -> None:
-    """Produit le fichier organes.csv à partir des fichiers JSON du répertoire organes"""
-
-    # ouverture du fichier organes en écriture
+    # ouverture du fichier ORGANES_FILE en écriture
     with open(ORGANES_FILE, 'w', encoding='utf-8', newline='') as organe_file:
-
         organe_file.write('organe_id;type_organe;libelle_abrev;libelle\n')
-        # Parcourir les fichiers JSON du répertoire Organes
+
+        # Parcourir les fichiers JSON du répertoire ORGANES_FOLDER
         for file in sorted(os.listdir(ORGANES_FOLDER)):
             if file.endswith('.json'):
                 json_path = os.path.join(ORGANES_FOLDER, file)
@@ -74,7 +53,7 @@ def calcul_organes() -> None:
                     organe_file.write(';'.join([organe, type_organe, libelle_abrev, libelle]) + '\n')
 
 
-def charger_noms_prenoms_acteurs() -> Dict[str, Dict[str, str]]:
+def charger_dossier_acteur() -> Dict[str, Dict[str, str]]:
     """Charge les noms et prénoms de TOUS les acteurs depuis le répertoire ACTEURS_FOLDER
     et retourne un dictionnaire {acteur_uid: {'nom': nom, 'prenom': prenom}}"""
 
@@ -97,7 +76,7 @@ def charger_noms_prenoms_acteurs() -> Dict[str, Dict[str, str]]:
     return acteurs_info
 
 
-def calcul_votes() -> None:
+def calcul_acteurs_votes() -> None:
     """Produit les fichiers TABLE_DISTANCES_FILE et ACTEURS_FILE à partir des fichiers JSON du répertoire scrutins"""
 
     # Dictionnaires
@@ -106,7 +85,7 @@ def calcul_votes() -> None:
     scrutins_list = []
 
     # Charge les noms et prénoms des acteurs
-    acteurs_info = charger_noms_prenoms_acteurs()
+    acteurs_info = charger_dossier_acteur()
 
     # Parcourir les fichiers JSON du répertoire scrutins
     for file in sorted(os.listdir(SCRUTINS_FOLDER)):
@@ -198,6 +177,36 @@ def calcul_distances() -> None:
     distance_df.to_csv(TABLE_DISTANCES_FILE, sep=';')
 
 
+def charger_fichier_acteur() -> Dict[str, Dict[str, str]]:
+    """Charge les noms et prénoms des acteurs depuis ACTEURS_FILE (produit par calcul_acteurs_votes())
+    et retourne un dictionnaire {acteur_uid: {'nom': nom, 'prenom': prenom}}"""
+
+    df = pd.read_csv(ACTEURS_FILE, sep=';', dtype=str).set_index('acteur_id')
+    return {str(acteur_id): {'nom': str(row['nom']), 'prenom': str(row['prenom'])}
+            for acteur_id, row in df.iterrows()}
+
+
+def charger_csv(fichier: str):
+    """Charge une table auxiliaire CSV (';') et la retourne sous forme de dict.
+    - table à une seule colonne de valeur  -> {index_col: value_col}
+    - table à plusieurs colonnes de valeur -> {colonne: {index_col: colonne}, ...}
+      (dict de dicts ; ACTEURS_FILE est alors relu une fois par colonne)
+    """
+    if fichier == ACTEURS_FILE:
+        return {col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
+                for col in ['groupe_id', 'nom', 'prenom']}
+    elif fichier == ORGANES_FILE:
+        return pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
+    elif fichier == GROUPES_COULEURS_FILE:
+        return pd.read_csv(GROUPES_COULEURS_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
+    elif fichier == ACTEUR_LABEL_FILE:
+        return pd.read_csv(ACTEUR_LABEL_FILE, sep=';').set_index('acteur_id')['label'].to_dict()
+    elif fichier == ACTEURS_PARTICIP_FILE:
+        return pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
+    else:
+        raise ValueError(f'table auxiliaire inconnue : {fichier}')
+
+
 def statistiques() -> None:
     """Produit le fichier ACTEURS_PARTICIP_FILE et affiche les statistiques de participation des acteurs.
     """
@@ -216,7 +225,7 @@ def statistiques() -> None:
         for acteur, count in participation.items():
             f.write(f'{acteur};{count}\n')
 
-    acteurs_info = charger_noms_prenoms_acteurs()
+    acteurs_info = charger_fichier_acteur()
     acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
     organes_abrev = charger_csv(ORGANES_FILE)
     acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
@@ -401,7 +410,7 @@ def statistiques() -> None:
 
 
 def calcul_labels() -> None:
-    acteurs_info = charger_noms_prenoms_acteurs()
+    acteurs_info = charger_fichier_acteur()
     acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
     organes_abrev = charger_csv(ORGANES_FILE)
     acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
@@ -606,9 +615,9 @@ def main() -> None:
 
         match choix:
             case 'o':
-                calcul_organes()
+                traitement_dossier_organe()
             case 'v':
-                calcul_votes()
+                calcul_acteurs_votes()
             case 'd':
                 calcul_distances()
             case 's':
