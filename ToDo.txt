@@ -1,6 +1,3 @@
-faire les factorisations proposées par Claude
-comment utiliser charger_tables_auxiliaires
-
 éviter les dstances 0 dans la  recherche couples proches
 
 création d'un acteur virtuel qui représente le GP et calculer ses votes (somme des votes des acters du GP puis réduction à 1, 0 ou -1
@@ -8,7 +5,4 @@ calculer la distance entre cet acteur virtuel et les autres acteurs pour voir qu
 
 
 factoriser, exemple def label_for()
-
-deplacer/factoriser daons main() le traitment des dossiers entrée car c'est fait plusieurs fois !!
-on devrait parcourir le dossier acteu 1 seula fois
 

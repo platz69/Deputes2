@@ -1,5 +1,5 @@
 # bibliothèques standard
-import math # uniquement pour la racine carrée sqrt() !
+import math  # uniquement pour la racine carrée sqrt() !
 import os
 import json
 from typing import Dict
@@ -8,39 +8,50 @@ from typing import Dict
 import pandas as pd
 
 # entrées
-ACTEURS_FOLDER        = 'acteur'               # répertoire où l'on dépose les fichiers PAxxxx.json
-ORGANES_FOLDER        = 'organe'               # répertoire où l'on dépose les fichiers POxxxx.json
-SCRUTINS_FOLDER       = 'scrutin'              # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
-GROUPES_COULEURS_FILE = 'groupes_couleurs.csv' # abrev;libelle;tendance;couleur
+ACTEURS_FOLDER = 'acteur'  # répertoire où l'on dépose les fichiers PAxxxx.json
+ORGANES_FOLDER = 'organe'  # répertoire où l'on dépose les fichiers POxxxx.json
+SCRUTINS_FOLDER = 'scrutin'  # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
+GROUPES_COULEURS_FILE = 'groupes_couleurs.csv'  # abrev;libelle;tendance;couleur
 
 # sorties
-TEMP_FOLDER         = 'temp'                   # répertoire temporaire pour les fichiers CSV intermédiaires
+TEMP_FOLDER = 'temp'  # répertoire temporaire pour les fichiers CSV intermédiaires
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 
-ACTEURS_PARTICIP_FILE = os.path.join(TEMP_FOLDER, 'acteurs_particip.csv') # commence par 'acteur_id;groupe_id;nom;prenom\n'
-ACTEUR_LABEL_FILE     = os.path.join(TEMP_FOLDER, 'acteurs_label.csv')    # commence par 'acteur_id;label\n'
-ACTEURS_FILE          = os.path.join(TEMP_FOLDER, 'acteurs.csv')          # commence par 'acteur_id;groupe_id;nom;prenom\n'
-COORDONNES_2D_FILE    = os.path.join(TEMP_FOLDER, 'coordonnes_2d.csv')    # commence par 'id_acteur;x;y'
-COORDONNES_3D_FILE    = os.path.join(TEMP_FOLDER, 'coordonnes_3d.csv')    # commence par 'id_acteur;x;y;z'
-ORGANES_FILE          = os.path.join(TEMP_FOLDER, 'organes.csv')          # commence par 'organe_id;type_organe;libelle_abrev;libelle'
-TABLE_VOTES_FILE      = os.path.join(TEMP_FOLDER, 'table_votes.csv')      # tableau acteur_id vs scrutin_id
-TABLE_DISTANCES_FILE  = os.path.join(TEMP_FOLDER, 'table_distances.csv')  # tableau acteur_1_id vs acteur_2_id
+ACTEURS_PARTICIP_FILE = os.path.join(TEMP_FOLDER, 'acteurs_particip.csv')  # commence par 'acteur_id;groupe_id;nom;prenom\n'
+ACTEUR_LABEL_FILE = os.path.join(TEMP_FOLDER, 'acteurs_label.csv')  # commence par 'acteur_id;label\n'
+ACTEURS_FILE = os.path.join(TEMP_FOLDER, 'acteurs.csv')  # commence par 'acteur_id;groupe_id;nom;prenom\n'
+COORDONNES_2D_FILE = os.path.join(TEMP_FOLDER, 'coordonnes_2d.csv')  # commence par 'id_acteur;x;y'
+COORDONNES_3D_FILE = os.path.join(TEMP_FOLDER, 'coordonnes_3d.csv')  # commence par 'id_acteur;x;y;z'
+ORGANES_FILE = os.path.join(TEMP_FOLDER, 'organes.csv')  # commence par 'organe_id;type_organe;libelle_abrev;libelle'
+TABLE_VOTES_FILE = os.path.join(TEMP_FOLDER, 'table_votes.csv')  # tableau acteur_id vs scrutin_id
+TABLE_DISTANCES_FILE = os.path.join(TEMP_FOLDER, 'table_distances.csv')  # tableau acteur_1_id vs acteur_2_id
 
 # couleurs d'affichage dans la console
 # Pour l'affichage en bleu
-blue  = '\033[34m'
+blue = '\033[34m'
 green = '\033[32m'
 reset = '\033[0m'
 
-# def charger_tables_auxiliaires() -> dict:
-#     acteurs = pd.read_csv(ACTEURS_FILE, sep=';', header=None)
-#     return {
-#         'groupes':  acteurs.set_index(0)[1].to_dict(),
-#         'noms':     acteurs.set_index(0)[2].to_dict(),
-#         'prenoms':  acteurs.set_index(0)[3].to_dict(),
-#         'organes':  pd.read_csv(ORGANES_FILE, sep=';', header=None).set_index(0)[2].to_dict(),
-#         'couleurs': pd.read_csv(GROUPES_COULEURS_FILE, sep=';', header=None).set_index(0)[3].to_dict(),
-#     }
+
+def charger_csv(fichier: str):
+    """Charge une table auxiliaire CSV (';') et la retourne sous forme de dict.
+    - table à une seule colonne de valeur  -> {index_col: value_col}
+    - table à plusieurs colonnes de valeur -> {colonne: {index_col: colonne}, ...}
+      (dict de dicts ; ACTEURS_FILE est alors relu une fois par colonne)
+    """
+    if fichier == ACTEURS_FILE:
+        return {col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
+                for col in ['groupe_id', 'nom', 'prenom']}
+    elif fichier == ORGANES_FILE:
+        return pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
+    elif fichier == GROUPES_COULEURS_FILE:
+        return pd.read_csv(GROUPES_COULEURS_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
+    elif fichier == ACTEUR_LABEL_FILE:
+        return pd.read_csv(ACTEUR_LABEL_FILE, sep=';').set_index('acteur_id')['label'].to_dict()
+    elif fichier == ACTEURS_PARTICIP_FILE:
+        return pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
+    else:
+        raise ValueError(f'table auxiliaire inconnue : {fichier}')
 
 
 def calcul_organes() -> None:
@@ -52,15 +63,15 @@ def calcul_organes() -> None:
         organe_file.write('organe_id;type_organe;libelle_abrev;libelle\n')
         # Parcourir les fichiers JSON du répertoire Organes
         for file in sorted(os.listdir(ORGANES_FOLDER)):
-                if file.endswith('.json'):
-                    json_path = os.path.join(ORGANES_FOLDER, file)
-                    with open(json_path, encoding='utf-8') as f:
-                        data           = json.load(f)
-                        organe         = data['organe']['uid']
-                        type_organe    = data['organe']['codeType']
-                        libelle_abrev  = str(data['organe']['libelleAbrev']).upper()
-                        libelle        = data['organe']['libelle']
-                        organe_file.write(';'.join([organe, type_organe, libelle_abrev, libelle]) + '\n')
+            if file.endswith('.json'):
+                json_path = os.path.join(ORGANES_FOLDER, file)
+                with open(json_path, encoding='utf-8') as f:
+                    data = json.load(f)
+                    organe = data['organe']['uid']
+                    type_organe = data['organe']['codeType']
+                    libelle_abrev = str(data['organe']['libelleAbrev']).upper()
+                    libelle = data['organe']['libelle']
+                    organe_file.write(';'.join([organe, type_organe, libelle_abrev, libelle]) + '\n')
 
 
 def charger_noms_prenoms_acteurs() -> Dict[str, Dict[str, str]]:
@@ -68,7 +79,7 @@ def charger_noms_prenoms_acteurs() -> Dict[str, Dict[str, str]]:
     et retourne un dictionnaire {acteur_uid: {'nom': nom, 'prenom': prenom}}"""
 
     acteurs_info = {}
-    
+
     for file in sorted(os.listdir(ACTEURS_FOLDER)):
         if file.endswith('.json'):
             json_path = os.path.join(ACTEURS_FOLDER, file)
@@ -82,7 +93,7 @@ def charger_noms_prenoms_acteurs() -> Dict[str, Dict[str, str]]:
                     acteurs_info[acteur_uid] = {'nom': nom, 'prenom': prenom}
             except (KeyError, json.JSONDecodeError):
                 pass
-    
+
     return acteurs_info
 
 
@@ -90,8 +101,8 @@ def calcul_votes() -> None:
     """Produit les fichiers TABLE_DISTANCES_FILE et ACTEURS_FILE à partir des fichiers JSON du répertoire scrutins"""
 
     # Dictionnaires
-    votant_dict   = {}
-    votes_dict    = {}
+    votant_dict = {}
+    votes_dict = {}
     scrutins_list = []
 
     # Charge les noms et prénoms des acteurs
@@ -99,14 +110,15 @@ def calcul_votes() -> None:
 
     # Parcourir les fichiers JSON du répertoire scrutins
     for file in sorted(os.listdir(SCRUTINS_FOLDER)):
-        if file.endswith('.json') and file.startswith('VTA'): # attention il y a un fichier VTCxxx à éviter, on ne prend que les VTAxxx !
+        if file.endswith('.json') and file.startswith(
+                'VTA'):  # attention il y a un fichier VTCxxx à éviter, on ne prend que les VTAxxx !
             scrutin_id = file.replace('.json', '')
             scrutins_list.append(scrutin_id)
 
             json_path = os.path.join(SCRUTINS_FOLDER, file)
             with open(json_path, encoding='utf-8') as f:
-                data    = json.load(f)
-                groups  = data['scrutin']['ventilationVotes']['organe']['groupes']['groupe']
+                data = json.load(f)
+                groups = data['scrutin']['ventilationVotes']['organe']['groupes']['groupe']
 
                 # Pour chaque groupe, extraire les votes
                 for group in groups:
@@ -164,7 +176,7 @@ def calcul_distances() -> None:
     import numpy as np
 
     # Lecture du fichier CSV, la première colonne est utilisée comme index
-    df = pd.read_csv(TABLE_VOTES_FILE, sep=';', index_col=0) # noqa
+    df = pd.read_csv(TABLE_VOTES_FILE, sep=';', index_col=0)  # noqa
 
     deputes = df.index
     votes = df.to_numpy()
@@ -177,7 +189,7 @@ def calcul_distances() -> None:
     for i in range(nb_deputes):
         # la matrice est symétrique, on ne parcourt que la moitié supérieure
         for j in range(i, nb_deputes):
-            d = np.sum(np.abs(votes[i,:] - votes[j,:]))
+            d = np.sum(np.abs(votes[i, :] - votes[j, :]))
             dist[i, j] = d
             dist[j, i] = d
 
@@ -204,10 +216,10 @@ def statistiques() -> None:
         for acteur, count in participation.items():
             f.write(f'{acteur};{count}\n')
 
-    acteurs_info     = charger_noms_prenoms_acteurs()
-    acteurs_groupes  = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['groupe_id'].to_dict()
-    organes_abrev      = pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
-    acteurs_particip = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
+    acteurs_info = charger_noms_prenoms_acteurs()
+    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
+    organes_abrev = charger_csv(ORGANES_FILE)
+    acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
 
     # def label_for(acteur_id: str) -> str:
     #     info   = acteurs_info.get(acteur_id)
@@ -220,7 +232,7 @@ def statistiques() -> None:
     #
     #     return f'{name} ({grp_label})'
 
-    top5    = participation.sort_values(ascending=False).head(5)
+    top5 = participation.sort_values(ascending=False).head(5)
     bottom5 = participation.sort_values(ascending=True).head(5)
 
     def acteur_label(acteur_id: str) -> str:
@@ -249,13 +261,13 @@ def statistiques() -> None:
     actors = list(distances_df.index)
     n = len(actors)
     for i in range(n):
-        for j in range(i+1, n): # on ne prend que la moitié supérieure de cette matrice symétrique
+        for j in range(i + 1, n):  # on ne prend que la moitié supérieure de cette matrice symétrique
             d = distances_df.iat[i, j]
             pairs.append((actors[i], actors[j], d))
 
     pairs_sorted = sorted(pairs, key=lambda t: t[2])
-    closest5     = pairs_sorted[:5]
-    farthest5    = pairs_sorted[-5:][::-1]
+    closest5 = pairs_sorted[:5]
+    farthest5 = pairs_sorted[-5:][::-1]
 
     print(blue + '\n5 paires les plus proches (distance la plus petite):' + reset)
     for i, (a, b, d) in enumerate(closest5, start=1):
@@ -264,6 +276,7 @@ def statistiques() -> None:
     print(blue + '\n5 paires les plus éloignées (distance la plus grande):' + reset)
     for i, (a, b, d) in enumerate(farthest5, start=1):
         print(f'{i}. {acteur_label(str(a))}  -  {acteur_label(str(b))} : {d}')
+
 
 # def umap_2d(n_neighbors: int = 3, min_dist: float = 0, random_state: int = 42) -> None:
 #     """ Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
@@ -388,21 +401,22 @@ def statistiques() -> None:
 
 
 def calcul_labels() -> None:
-    acteurs_info     = charger_noms_prenoms_acteurs()
-    acteurs_groupes  = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['groupe_id'].to_dict()
-    organes_abrev      = pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
-    acteurs_particip = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
+    acteurs_info = charger_noms_prenoms_acteurs()
+    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
+    organes_abrev = charger_csv(ORGANES_FILE)
+    acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
     with open(ACTEUR_LABEL_FILE, 'w', encoding='utf-8', newline='') as f:
         f.write('acteur_id;label\n')
         # Parcours des acteurs ayant participé à cette législation
         for acteur_id in acteurs_particip:
-            prenom    = acteurs_info[acteur_id]['prenom']
-            nom       = acteurs_info[acteur_id]['nom']
-            grp_id    = acteurs_groupes.get(acteur_id)
+            prenom = acteurs_info[acteur_id]['prenom']
+            nom = acteurs_info[acteur_id]['nom']
+            grp_id = acteurs_groupes.get(acteur_id)
             grp_label = organes_abrev.get(grp_id) or ''
-            nb_votes  = acteurs_particip.get(acteur_id) or 0
+            nb_votes = acteurs_particip.get(acteur_id) or 0
 
-            f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(nb_votes) + ' votes\n')
+            f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(
+                nb_votes) + ' votes\n')
 
 
 def reduire(algo: str, n_components: int, **kwargs) -> None:
@@ -436,16 +450,14 @@ def affiche_graphe_2d() -> None:
     embedding = pd.read_csv(COORDONNES_2D_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
-    acteurs_groupes  = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['groupe_id'].to_dict()
-    # acteurs_nom      = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['nom'].to_dict()
-    # acteurs_prenom   = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['prenom'].to_dict()
-    organes          = pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
-    groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
-    acteur_labels    = pd.read_csv(ACTEUR_LABEL_FILE, sep=';').set_index('acteur_id')['label'].to_dict()
-    acteurs_particip = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
-    vote_counts      = acteurs_particip
+    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
+    organes = charger_csv(ORGANES_FILE)
+    groupes_couleurs = charger_csv(GROUPES_COULEURS_FILE)
+    acteur_labels = charger_csv(ACTEUR_LABEL_FILE)
+    acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
+    vote_counts = acteurs_particip
 
-    votes     = list(vote_counts.values())
+    votes = list(vote_counts.values())
     min_votes = min(votes) if votes else 0
     max_votes = max(votes) if votes else 1
 
@@ -496,13 +508,15 @@ def affiche_graphe_3d() -> None:
     embedding = pd.read_csv(COORDONNES_3D_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
-    acteurs_groupe   = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['groupe_id'].to_dict()
-    acteurs_nom      = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['nom'].to_dict()
-    acteurs_prenom   = pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')['prenom'].to_dict()
-    organes          = pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
-    groupes_couleurs = pd.read_csv(GROUPES_COULEURS_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
-    acteur_labels    = pd.read_csv(ACTEUR_LABEL_FILE, sep=';').set_index('acteur_id')['label'].to_dict()
-    acteurs_particip = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
+    acteurs_maps = charger_csv(ACTEURS_FILE)
+    acteurs_groupe = acteurs_maps['groupe_id']
+    acteurs_nom = acteurs_maps['nom']
+    acteurs_prenom = acteurs_maps['prenom']
+    organes = charger_csv(ORGANES_FILE)
+    groupes_couleurs = charger_csv(GROUPES_COULEURS_FILE)
+    acteur_labels = charger_csv(ACTEUR_LABEL_FILE)
+
+    # acteurs_particip = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
 
     # votes = list(vote_counts.values())
     # max_votes = max(votes) if votes else 1
@@ -530,7 +544,8 @@ def affiche_graphe_3d() -> None:
             zs.append(z)
             colors.append(acteur_couleur)
             sizes.append(point_size(str(acteur_id)))
-            labels.append(acteur_labels.get(str(acteur_id), acteurs_prenom[acteur_id] + ' ' + acteurs_nom[acteur_id] + ', ' + acteur_id + ', ' + groupe_label))
+            labels.append(acteur_labels.get(str(acteur_id), acteurs_prenom[acteur_id] + ' ' + acteurs_nom[
+                acteur_id] + ', ' + acteur_id + ', ' + groupe_label))
         except (KeyError, TypeError, ValueError):
             continue
 
@@ -574,27 +589,32 @@ def affiche_graphe_3d() -> None:
 
 def main() -> None:
     while True:
-        choix = input('VOTRE CHOIX : '\
-                      +green+'o' +reset+': organes, '\
-                      +green+'v' +reset+': votes, '\
-                      +green+'d' +reset+': distances, '\
-                      +green+'s' +reset+': statistiques, '\
-                      +green+'l' +reset+': labels, '\
-                      +green+'u' +reset+': réduction UMAP 2D, '\
-                      +green+'u3'+reset+': réduction UMAP 3D, '\
-                      +green+'m' +reset+': réduction MDS 2D, '\
-                      +green+'m3'+reset+': réduction MDS 3D, '\
-                      +green+'a' +reset+': affiche graphe 2D, '\
-                      +green+'a3'+reset+': affiche graphe 3D, '\
-                      +green+'q' +reset+': quitter\
+        choix = input('VOTRE CHOIX : ' \
+                      + green + 'o' + reset + ': organes, ' \
+                      + green + 'v' + reset + ': votes, ' \
+                      + green + 'd' + reset + ': distances, ' \
+                      + green + 's' + reset + ': statistiques, ' \
+                      + green + 'l' + reset + ': labels, ' \
+                      + green + 'u' + reset + ': réduction UMAP 2D, ' \
+                      + green + 'u3' + reset + ': réduction UMAP 3D, ' \
+                      + green + 'm' + reset + ': réduction MDS 2D, ' \
+                      + green + 'm3' + reset + ': réduction MDS 3D, ' \
+                      + green + 'a' + reset + ': affiche graphe 2D, ' \
+                      + green + 'a3' + reset + ': affiche graphe 3D, ' \
+                      + green + 'q' + reset + ': quitter\
                       > ')
-        
+
         match choix:
-            case 'o': calcul_organes()
-            case 'v': calcul_votes()
-            case 'd': calcul_distances()
-            case 's': statistiques()
-            case 'l': calcul_labels()
+            case 'o':
+                calcul_organes()
+            case 'v':
+                calcul_votes()
+            case 'd':
+                calcul_distances()
+            case 's':
+                statistiques()
+            case 'l':
+                calcul_labels()
             case 'u':
                 # umap_2d()
                 reduire('umap', n_components=2, n_neighbors=3, min_dist=0, random_state=42)
@@ -614,7 +634,8 @@ def main() -> None:
                 break
             case 'q':
                 break
-            case _: print('Choix invalide. Veuillez réessayer.')
+            case _:
+                print('Choix invalide. Veuillez réessayer.')
 
 
 if __name__ == '__main__':
