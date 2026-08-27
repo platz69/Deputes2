@@ -2,35 +2,43 @@
 import math  # uniquement pour la racine carrée sqrt() !
 import os
 import json
-from typing import Dict
 
 # bibliothèques tierces communes
 import pandas as pd
+from typing import Any, Dict, Hashable, Union
 
 # entrées
-ACTEURS_FOLDER = 'acteur'  # répertoire où l'on dépose les fichiers PAxxxx.json
-ORGANES_FOLDER = 'organe'  # répertoire où l'on dépose les fichiers POxxxx.json
-SCRUTINS_FOLDER = 'scrutin'  # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
-GROUPES_COULEURS_FILE = 'groupes_couleurs.csv'  # abrev;libelle;tendance;couleur
+ACTEURS_FOLDER        = 'acteur'               # répertoire où l'on dépose les fichiers PAxxxx.json
+ORGANES_FOLDER        = 'organe'               # répertoire où l'on dépose les fichiers POxxxx.json
+SCRUTINS_FOLDER       = 'scrutin'              # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
+GROUPES_COULEURS_FILE = 'groupes_couleurs.csv' # abrev;libelle;tendance;couleur
 
 # sorties
 TEMP_FOLDER = 'temp'  # répertoire temporaire pour les fichiers CSV intermédiaires
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 
-ACTEURS_PARTICIP_FILE = os.path.join(TEMP_FOLDER, 'acteurs_particip.csv')  # commence par 'acteur_id;groupe_id;nom;prenom\n'
-ACTEUR_LABEL_FILE = os.path.join(TEMP_FOLDER, 'acteurs_label.csv')  # commence par 'acteur_id;label\n'
-ACTEURS_FILE = os.path.join(TEMP_FOLDER, 'acteurs.csv')  # commence par 'acteur_id;groupe_id;nom;prenom\n'
-COORDONNES_2D_FILE = os.path.join(TEMP_FOLDER, 'coordonnes_2d.csv')  # commence par 'id_acteur;x;y'
-COORDONNES_3D_FILE = os.path.join(TEMP_FOLDER, 'coordonnes_3d.csv')  # commence par 'id_acteur;x;y;z'
-ORGANES_FILE = os.path.join(TEMP_FOLDER, 'organes.csv')  # commence par 'organe_id;type_organe;libelle_abrev;libelle'
-TABLE_VOTES_FILE = os.path.join(TEMP_FOLDER, 'table_votes.csv')  # tableau acteur_id vs scrutin_id
-TABLE_DISTANCES_FILE = os.path.join(TEMP_FOLDER, 'table_distances.csv')  # tableau acteur_1_id vs acteur_2_id
+ACTEURS_PARTICIP_FILE = os.path.join(TEMP_FOLDER, 'acteurs_particip.csv') # commence par 'acteur_id;groupe_id;nom;prenom\n'
+ACTEUR_LABEL_FILE     = os.path.join(TEMP_FOLDER, 'acteurs_label.csv')    # commence par 'acteur_id;label\n'
+ACTEURS_FILE          = os.path.join(TEMP_FOLDER, 'acteurs.csv')          # commence par 'acteur_id;groupe_id;nom;prenom\n'
+COORDONNES_2D_FILE    = os.path.join(TEMP_FOLDER, 'coordonnes_2d.csv')    # commence par 'id_acteur;x;y'
+COORDONNES_3D_FILE    = os.path.join(TEMP_FOLDER, 'coordonnes_3d.csv')    # commence par 'id_acteur;x;y;z'
+ORGANES_FILE          = os.path.join(TEMP_FOLDER, 'organes.csv')          # commence par 'organe_id;type_organe;libelle_abrev;libelle'
+TABLE_VOTES_FILE      = os.path.join(TEMP_FOLDER, 'table_votes.csv')      # tableau acteur_id vs scrutin_id
+TABLE_DISTANCES_FILE  = os.path.join(TEMP_FOLDER, 'table_distances.csv')  # tableau acteur_1_id vs acteur_2_id
 
 # couleurs d'affichage dans la console
-# Pour l'affichage en bleu
-blue = '\033[34m'
-green = '\033[32m'
+blue, green = '\033[34m', '\033[32m'
 reset = '\033[0m'
+
+
+def charger_votes() -> pd.DataFrame:
+    """Charge TABLE_VOTES_FILE sous forme de DataFrame (index = acteur_id)."""
+    return pd.read_csv(TABLE_VOTES_FILE, sep=';', index_col=0)
+
+
+def charger_distances() -> pd.DataFrame:
+    """Charge TABLE_DISTANCES_FILE sous forme de DataFrame (index = acteur_id)."""
+    return pd.read_csv(TABLE_DISTANCES_FILE, sep=';', index_col=0)
 
 
 def traitement_dossier_organe() -> None:
@@ -155,7 +163,7 @@ def calcul_distances() -> None:
     import numpy as np
 
     # Lecture du fichier CSV, la première colonne est utilisée comme index
-    df = pd.read_csv(TABLE_VOTES_FILE, sep=';', index_col=0)  # noqa
+    df = charger_votes()  # noqa
 
     deputes = df.index
     votes = df.to_numpy()
@@ -186,7 +194,26 @@ def charger_fichier_acteur() -> Dict[str, Dict[str, str]]:
             for acteur_id, row in df.iterrows()}
 
 
-def charger_csv(fichier: str):
+def calcul_participation() -> None:
+    """Produit le fichier ACTEURS_PARTICIP_FILE
+    """
+
+    df = charger_votes()
+
+    # Convertir en numérique et remplacer les non-nombres par 0
+    df_num = df.apply(pd.to_numeric, errors='coerce').astype(int).fillna(0)
+
+    # Participation = somme des valeurs non-nulles de la ligne
+    participation = (df_num != 0).sum(axis=1)
+
+    # Écriture du fichier ACTEURS_PARTICIP_FILE
+    with open(ACTEURS_PARTICIP_FILE, 'w', encoding='utf-8', newline='') as f:
+        f.write('acteur_id;nb_votes\n')
+        for acteur, count in participation.items():
+            f.write(f'{acteur};{count}\n')
+
+
+def charger_csv(fichier: str) -> Union[Dict[Hashable, Any], Dict[str, Dict[Hashable, Any]]]:
     """Charge une table auxiliaire CSV (';') et la retourne sous forme de dict.
     - table à une seule colonne de valeur  -> {index_col: value_col}
     - table à plusieurs colonnes de valeur -> {colonne: {index_col: colonne}, ...}
@@ -208,26 +235,12 @@ def charger_csv(fichier: str):
 
 
 def statistiques() -> None:
-    """Produit le fichier ACTEURS_PARTICIP_FILE et affiche les statistiques de participation des acteurs.
+    """Affiche des statistiques de participation des acteurs.
     """
 
-    df = pd.read_csv(TABLE_VOTES_FILE, sep=';', index_col=0)
-
-    # Convertir en numérique et remplacer les non-nombres par 0
-    df_num = df.apply(pd.to_numeric, errors='coerce').astype(int).fillna(0)
-
-    # Participation = somme des valeurs non-nulles de la ligne
-    participation = (df_num != 0).sum(axis=1)
-
-    # Écriture du fichier ACTEURS_PARTICIP_FILE
-    with open(ACTEURS_PARTICIP_FILE, 'w', encoding='utf-8', newline='') as f:
-        f.write('acteur_id;nb_votes\n')
-        for acteur, count in participation.items():
-            f.write(f'{acteur};{count}\n')
-
-    acteurs_info = charger_fichier_acteur()
-    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
-    organes_abrev = charger_csv(ORGANES_FILE)
+    acteurs_info     = charger_fichier_acteur()
+    acteurs_groupes  = charger_csv(ACTEURS_FILE)['groupe_id']
+    organes_abrev    = charger_csv(ORGANES_FILE)
     acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
 
     # def label_for(acteur_id: str) -> str:
@@ -241,17 +254,19 @@ def statistiques() -> None:
     #
     #     return f'{name} ({grp_label})'
 
-    top5 = participation.sort_values(ascending=False).head(5)
+    # participation : séries pandas (index=acteur_id -> nb_votes) — lu depuis ACTEURS_PARTICIP_FILE
+    participation = pd.Series(acteurs_particip).astype(int)
+    top5    = participation.sort_values(ascending=False).head(5)
     bottom5 = participation.sort_values(ascending=True).head(5)
 
     def acteur_label(acteur_id: str) -> str:
         """Retourne la chaîne 'prénom nom++acteur_id+(groupe)+nb_votes'."""
 
-        prenom = acteurs_info[acteur_id]['prenom']
-        nom = acteurs_info[acteur_id]['nom']
-        grp_id = acteurs_groupes.get(acteur_id)
+        prenom    = acteurs_info[acteur_id]['prenom']
+        nom       = acteurs_info[acteur_id]['nom']
+        grp_id    = acteurs_groupes.get(acteur_id)
         grp_label = organes_abrev.get(grp_id) or ''
-        nb_votes = acteurs_particip.get(acteur_id) or 0
+        nb_votes  = acteurs_particip.get(acteur_id) or 0
 
         return prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(nb_votes) + ' votes'
 
@@ -264,14 +279,15 @@ def statistiques() -> None:
         print(f'{i}. {acteur_label(str(acteur))}: {count}')
 
     # Calculer les paires les plus proches/éloignées à partir de TABLE_DISTANCES_FILE
-    distances_df = pd.read_csv(TABLE_DISTANCES_FILE, sep=';', index_col=0)
+    distances_df = charger_distances()
 
-    pairs = []
-    actors = list(distances_df.index)
+    # ne pas tenir compte des acteurs n'ayant jamais voté pour ou contre qq chose
+    actors = [a for a in distances_df.index if (acteurs_particip.get(str(a)) or 0) > 0]
     n = len(actors)
+    pairs = []
     for i in range(n):
         for j in range(i + 1, n):  # on ne prend que la moitié supérieure de cette matrice symétrique
-            d = distances_df.iat[i, j]
+            d = distances_df.loc[actors[i], actors[j]]
             pairs.append((actors[i], actors[j], d))
 
     pairs_sorted = sorted(pairs, key=lambda t: t[2])
@@ -410,14 +426,17 @@ def statistiques() -> None:
 
 
 def calcul_labels() -> None:
+
     acteurs_info = charger_fichier_acteur()
     acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
     organes_abrev = charger_csv(ORGANES_FILE)
     acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
+
     with open(ACTEUR_LABEL_FILE, 'w', encoding='utf-8', newline='') as f:
         f.write('acteur_id;label\n')
-        # Parcours des acteurs ayant participé à cette législation
+        # Parcours des acteurs ayant participé à cette législature
         for acteur_id in acteurs_particip:
+            acteur_id = str(acteur_id)
             prenom = acteurs_info[acteur_id]['prenom']
             nom = acteurs_info[acteur_id]['nom']
             grp_id = acteurs_groupes.get(acteur_id)
@@ -431,7 +450,7 @@ def calcul_labels() -> None:
 def reduire(algo: str, n_components: int, **kwargs) -> None:
     """Produit coordonnes.csv (2D) ou coordonnes_3d.csv (3D) via UMAP ou MDS"""
 
-    distances = pd.read_csv(TABLE_DISTANCES_FILE, sep=';', index_col=0)
+    distances = charger_distances()
 
     if algo == 'umap':
         import umap
@@ -463,16 +482,15 @@ def affiche_graphe_2d() -> None:
     organes = charger_csv(ORGANES_FILE)
     groupes_couleurs = charger_csv(GROUPES_COULEURS_FILE)
     acteur_labels = charger_csv(ACTEUR_LABEL_FILE)
-    acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
-    vote_counts = acteurs_particip
+    # acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
 
-    votes = list(vote_counts.values())
-    min_votes = min(votes) if votes else 0
-    max_votes = max(votes) if votes else 1
-
-    def point_size(act_id: str) -> float:
-        nb_votes = vote_counts.get(act_id, min_votes)
-        return 80 if max_votes == min_votes else 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
+    # # Calcul de la taille des points en fonction du nb de votes
+    # votes = list(vote_counts.values())
+    # min_votes = min(votes) if votes else 0
+    # max_votes = max(votes) if votes else 1
+    # def point_size(act_id: str) -> float:
+    #     nb_votes = vote_counts.get(act_id, min_votes)
+    #     return 80 if max_votes == min_votes else 20 + 200 * (nb_votes - min_votes) / (max_votes - min_votes)
 
     # construction du graphe
     fig, ax = plt.subplots(figsize=(8, 8))
@@ -485,8 +503,8 @@ def affiche_graphe_2d() -> None:
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
-            sizes.append(point_size(str(acteur_id)))
-            labels.append(acteur_labels.get(str(acteur_id)))
+            # sizes.append(point_size(str(acteur_id))) # taille de points variable
+            labels.append(10)
         except (KeyError, TypeError, ValueError):
             # si un acteur manque dans les tables, on l'ignore
             continue
@@ -525,15 +543,14 @@ def affiche_graphe_3d() -> None:
     groupes_couleurs = charger_csv(GROUPES_COULEURS_FILE)
     acteur_labels = charger_csv(ACTEUR_LABEL_FILE)
 
+    # # Calcul de la taille des points
     # acteurs_particip = pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
-
     # votes = list(vote_counts.values())
     # max_votes = max(votes) if votes else 1
-
-    def point_size(act_id: str) -> int:
-        # nb_votes = acteurs_particip.get(act_id, 0)
-        # return int(5.0 + 20 * math.sqrt((nb_votes / max_votes))) # tentative de taille proportionnelle à la participation
-        return 10
+    # def point_size(act_id: str) -> int:
+    #     # nb_votes = acteurs_particip.get(act_id, 0)
+    #     # return int(5.0 + 20 * math.sqrt((nb_votes / max_votes))) # tentative de taille proportionnelle à la participation
+    #     return 20
 
     # construction du graphe 3D
     fig = plt.figure(figsize=(9, 7))
@@ -552,7 +569,8 @@ def affiche_graphe_3d() -> None:
             ys.append(y)
             zs.append(z)
             colors.append(acteur_couleur)
-            sizes.append(point_size(str(acteur_id)))
+            # sizes.append(point_size(str(acteur_id))) # taille de points variable
+            sizes.append(10)
             labels.append(acteur_labels.get(str(acteur_id), acteurs_prenom[acteur_id] + ' ' + acteurs_nom[
                 acteur_id] + ', ' + acteur_id + ', ' + groupe_label))
         except (KeyError, TypeError, ValueError):
@@ -602,11 +620,12 @@ def main() -> None:
                       + green + 'o' + reset + ': organes, ' \
                       + green + 'v' + reset + ': votes, ' \
                       + green + 'd' + reset + ': distances, ' \
-                      + green + 's' + reset + ': statistiques, ' \
+                      + green + 'p' + reset + ': participation, ' \
+                      # + green + 's' + reset + ': statistiques, ' \
                       + green + 'l' + reset + ': labels, ' \
-                      + green + 'u' + reset + ': réduction UMAP 2D, ' \
-                      + green + 'u3' + reset + ': réduction UMAP 3D, ' \
-                      + green + 'm' + reset + ': réduction MDS 2D, ' \
+                      # + green + 'u' + reset + ': réduction UMAP 2D, ' \
+                      # + green + 'u3' + reset + ': réduction UMAP 3D, ' \
+                      # + green + 'm' + reset + ': réduction MDS 2D, ' \
                       + green + 'm3' + reset + ': réduction MDS 3D, ' \
                       + green + 'a' + reset + ': affiche graphe 2D, ' \
                       + green + 'a3' + reset + ': affiche graphe 3D, ' \
@@ -620,6 +639,8 @@ def main() -> None:
                 calcul_acteurs_votes()
             case 'd':
                 calcul_distances()
+            case 'p':
+                calcul_participation()
             case 's':
                 statistiques()
             case 'l':

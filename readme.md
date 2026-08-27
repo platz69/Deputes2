@@ -6,6 +6,7 @@ Je cherche à identifier les similitudes de comportement entre les votants (qui 
 
 Pour cela chaque député est représenté par un vecteur à +/- 4000 dimensions (nombre de scrutins dans une législature)
 puis un algorithme UMAP ou MDS réduit cet espace à 3 dimensions afin de faire apparaître des nuages de points sur un graphique.
+(Les acteurs ayant une participation à 0 sont généralement des députés ayant été rapidement nommés dans un gouvernement et n'ayant jamais voté ni pour ni contre à un quelconque scrutin)
 
 La règle de distance entre chaque député est calculée en fonction de leurs votes :
 - même vote : distance = +0

@@ -1,10 +1,6 @@
-refaire la feuille de contriole y a pas PO800496
 faire 1 passe globale sur le dosiser acteur (sans organe ?) pour aligner avec comportementdes organe
-découper statistiques() qui fait des trucs differents
 factoriser, exemple def label_for()
-
-éviter les dstances 0 dans la  recherche couples proches
-
+y a des chargemebts de csv qui renvoient des df, d'autres des dict, faudrait homogénéiser
 création d'un acteur virtuel qui représente le GP et calculer ses votes (somme des votes des acters du GP puis réduction à 1, 0 ou -1
 calculer la distance entre cet acteur virtuel et les autres acteurs pour voir qui est le plus proche et le plus éloigné du GP
 
