@@ -8,23 +8,25 @@ import pandas as pd
 from typing import Any, Dict, Hashable, Union
 
 # entrées
-ACTEURS_FOLDER        = 'acteur'               # répertoire où l'on dépose les fichiers PAxxxx.json
-ORGANES_FOLDER        = 'organe'               # répertoire où l'on dépose les fichiers POxxxx.json
-SCRUTINS_FOLDER       = 'scrutin'              # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
-GROUPES_COULEURS_FILE = 'groupes_couleurs.csv' # abrev;libelle;tendance;couleur
+ACTEURS_FOLDER         = 'acteur'               # répertoire où l'on dépose les fichiers PAxxxx.json
+ORGANES_FOLDER         = 'organe'               # répertoire où l'on dépose les fichiers POxxxx.json
+SCRUTINS_FOLDER        = 'scrutin'              # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
+TENDANCES_COULEUR_FILE = 'tendances_couleur.csv' # abrev;libelle;tendance;couleur
 
 # sorties
 TEMP_FOLDER = 'temp'  # répertoire temporaire pour les fichiers CSV intermédiaires
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 
-ACTEURS_PARTICIP_FILE = os.path.join(TEMP_FOLDER, 'acteurs_particip.csv') # commence par 'acteur_id;groupe_id;nom;prenom\n'
-ACTEUR_LABEL_FILE     = os.path.join(TEMP_FOLDER, 'acteurs_label.csv')    # commence par 'acteur_id;label\n'
-ACTEURS_FILE          = os.path.join(TEMP_FOLDER, 'acteurs.csv')          # commence par 'acteur_id;groupe_id;nom;prenom\n'
-COORDONNES_2D_FILE    = os.path.join(TEMP_FOLDER, 'coordonnes_2d.csv')    # commence par 'id_acteur;x;y'
-COORDONNES_3D_FILE    = os.path.join(TEMP_FOLDER, 'coordonnes_3d.csv')    # commence par 'id_acteur;x;y;z'
-ORGANES_FILE          = os.path.join(TEMP_FOLDER, 'organes.csv')          # commence par 'organe_id;type_organe;libelle_abrev;libelle'
-TABLE_VOTES_FILE      = os.path.join(TEMP_FOLDER, 'table_votes.csv')      # tableau acteur_id vs scrutin_id
-TABLE_DISTANCES_FILE  = os.path.join(TEMP_FOLDER, 'table_distances.csv')  # tableau acteur_1_id vs acteur_2_id
+ACTEURS_PARTICIP_FILE   = os.path.join(TEMP_FOLDER, 'acteurs_particip.csv') # commence par 'acteur_id;groupe_id;nom;prenom\n'
+ACTEUR_LABEL_FILE       = os.path.join(TEMP_FOLDER, 'acteurs_label.csv')    # commence par 'acteur_id;label\n'
+ACTEURS_FILE            = os.path.join(TEMP_FOLDER, 'acteurs.csv')          # commence par 'acteur_id;groupe_id;nom;prenom\n'
+COORDONNES_2D_FILE      = os.path.join(TEMP_FOLDER, 'coordonnes_2d.csv')    # commence par 'id_acteur;x;y'
+COORDONNES_3D_FILE      = os.path.join(TEMP_FOLDER, 'coordonnes_3d.csv')    # commence par 'id_acteur;x;y;z'
+GROUPES_FILE            = os.path.join(TEMP_FOLDER, 'groupes.csv')          # commence par 'organe_id;libelle_abrev;libelle'
+GROUPES_VOTE_FILE       = os.path.join(TEMP_FOLDER, 'groupes_vote.csv')     # commence par 'tendance;scrutin1;scrutin2;...'
+DISTANCE_TENDANCE       = os.path.join(TEMP_FOLDER, 'distance_tendance.csv')# commence par 'acteur_id;distance'
+TABLE_VOTES_FILE        = os.path.join(TEMP_FOLDER, 'table_votes.csv')      # tableau acteur_id vs scrutin_id
+TABLE_DISTANCES_FILE    = os.path.join(TEMP_FOLDER, 'table_distances.csv')  # tableau acteur_1_id vs acteur_2_id
 
 # couleurs d'affichage dans la console
 blue, green = '\033[34m', '\033[32m'
@@ -41,12 +43,12 @@ def charger_distances() -> pd.DataFrame:
     return pd.read_csv(TABLE_DISTANCES_FILE, sep=';', index_col=0)
 
 
-def traitement_dossier_organe() -> None:
-    """Produit le fichier ORGANES_FILE à partir des fichiers JSON du répertoire ORGANES_FOLDER"""
+def calcul_groupes() -> None:
+    """Produit le fichier GROUPES_FILE à partir des fichiers JSON du répertoire ORGANES_FOLDER"""
 
-    # ouverture du fichier ORGANES_FILE en écriture
-    with open(ORGANES_FILE, 'w', encoding='utf-8', newline='') as organe_file:
-        organe_file.write('organe_id;type_organe;libelle_abrev;libelle\n')
+    # ouverture du fichier GROUPES_FILE en écriture
+    with open(GROUPES_FILE, 'w', encoding='utf-8', newline='') as groupe_file:
+        groupe_file.write('organe_id;libelle_abrev;libelle\n')
 
         # Parcourir les fichiers JSON du répertoire ORGANES_FOLDER
         for file in sorted(os.listdir(ORGANES_FOLDER)):
@@ -54,11 +56,14 @@ def traitement_dossier_organe() -> None:
                 json_path = os.path.join(ORGANES_FOLDER, file)
                 with open(json_path, encoding='utf-8') as f:
                     data = json.load(f)
-                    organe = data['organe']['uid']
+                    organe_id = data['organe']['uid']
                     type_organe = data['organe']['codeType']
+                    # on ne conserve que les groupes parlementaires (codeType == 'GP')
+                    if type_organe != 'GP':
+                        continue
                     libelle_abrev = str(data['organe']['libelleAbrev']).upper()
                     libelle = data['organe']['libelle']
-                    organe_file.write(';'.join([organe, type_organe, libelle_abrev, libelle]) + '\n')
+                    groupe_file.write(';'.join([organe_id, libelle_abrev, libelle]) + '\n')
 
 
 def charger_dossier_acteur() -> Dict[str, Dict[str, str]]:
@@ -84,7 +89,7 @@ def charger_dossier_acteur() -> Dict[str, Dict[str, str]]:
     return acteurs_info
 
 
-def calcul_acteurs_votes() -> None:
+def calcul_acteurs_et_votes() -> None:
     """Produit les fichiers TABLE_DISTANCES_FILE et ACTEURS_FILE à partir des fichiers JSON du répertoire scrutins"""
 
     # Dictionnaires
@@ -158,6 +163,57 @@ def calcul_acteurs_votes() -> None:
             f.write(';'.join([acteur_id, votant_dict[acteur_id], info['nom'], info['prenom']]) + '\n')
 
 
+def calcul_vote_moyen_par_tendance():
+    """Calcule la somme des votes (-1, 0, +1) par tendance ET par scrutin
+
+    Parcourt TABLE_VOTES_FILE (index = acteur_id, colonnes = scrutins) et utilise
+    ACTEURS_FILE, GROUPES_FILE et TENDANCES_COULEUR_FILE pour mapper chaque
+    acteur à sa tendance. Écrit le résultat dans GROUPES_VOTE_FILE (CSV) et
+    retourne le DataFrame (index=tendance, colonnes=scrutins).
+    """
+
+    # lecture du tableau des votes
+    try:
+        df_votes = pd.read_csv(TABLE_VOTES_FILE, sep=';', index_col=0)
+    except Exception as e:
+        print(f"Impossible de lire {TABLE_VOTES_FILE}: {e}")
+        return pd.DataFrame()
+
+    # conversion en valeurs numériques (-1/0/1), remplacer valeurs manquantes par 0
+    df_num = df_votes.apply(pd.to_numeric, errors='coerce').fillna(0).astype(int)
+
+    # chargement des mappings pour retrouver la tendance d'un acteur
+    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']  # acteur_id -> organe_id
+    groupes_abrev = charger_csv(GROUPES_FILE)                 # organe_id -> libelle_abrev
+    groupes_tendance = pd.read_csv(TENDANCES_COULEUR_FILE, sep=';').set_index('abrev')['tendance'].to_dict()
+
+    # construire une Series mapping index acteur -> tendance (alignée sur df_num.index)
+    tendances = []
+    for acteur_id in df_num.index:
+        aid = str(acteur_id)
+        grp = acteurs_groupes.get(aid)
+        abrev = groupes_abrev.get(grp)
+        tend = groupes_tendance.get(abrev) if abrev is not None else None
+        if not tend:
+            tend = 'Inconnu'
+        tendances.append(tend)
+
+    s_tendance = pd.Series(tendances, index=df_num.index)
+
+    # grouper par tendance et sommer par scrutin
+    df_somme = df_num.groupby(s_tendance).sum()
+
+    # normaliser chaque cellule à -1 / 0 / +1 pour représenter la direction du vote
+    df_norm = df_somme.map(lambda x: 1 if x > 0 else (-1 if x < 0 else 0))
+
+    # Écriture du CSV GROUPES_VOTE_FILE (valeurs normalisées)
+    try:
+        df_norm.to_csv(GROUPES_VOTE_FILE, sep=';', index=True)
+    except Exception as e:
+        print(f"Erreur écriture {GROUPES_VOTE_FILE}: {e}")
+
+    return df_norm
+
 def calcul_distances() -> None:
     """ Produit le fichier distances.csv à partir du fichier votes.csv """
     import numpy as np
@@ -186,7 +242,7 @@ def calcul_distances() -> None:
 
 
 def charger_fichier_acteur() -> Dict[str, Dict[str, str]]:
-    """Charge les noms et prénoms des acteurs depuis ACTEURS_FILE (produit par calcul_acteurs_votes())
+    """Charge les noms et prénoms des acteurs depuis ACTEURS_FILE (produit par calcul_acteurs_et_votes())
     et retourne un dictionnaire {acteur_uid: {'nom': nom, 'prenom': prenom}}"""
 
     df = pd.read_csv(ACTEURS_FILE, sep=';', dtype=str).set_index('acteur_id')
@@ -218,14 +274,17 @@ def charger_csv(fichier: str) -> Union[Dict[Hashable, Any], Dict[str, Dict[Hasha
     - table à une seule colonne de valeur  -> {index_col: value_col}
     - table à plusieurs colonnes de valeur -> {colonne: {index_col: colonne}, ...}
       (dict de dicts ; ACTEURS_FILE est alors relu une fois par colonne)
+
+    Attention TABLE_DISTANCES_FILE et TABLE_VOTES_FILE ne doivent pas être chargés avec cette fonction
+    car pas structurés de la même façon
     """
     if fichier == ACTEURS_FILE:
         return {col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
                 for col in ['groupe_id', 'nom', 'prenom']}
-    elif fichier == ORGANES_FILE:
-        return pd.read_csv(ORGANES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
-    elif fichier == GROUPES_COULEURS_FILE:
-        return pd.read_csv(GROUPES_COULEURS_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
+    elif fichier == GROUPES_FILE:
+        return pd.read_csv(GROUPES_FILE, sep=';').set_index('organe_id')['libelle_abrev'].to_dict()
+    elif fichier == TENDANCES_COULEUR_FILE:
+        return pd.read_csv(TENDANCES_COULEUR_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
     elif fichier == ACTEUR_LABEL_FILE:
         return pd.read_csv(ACTEUR_LABEL_FILE, sep=';').set_index('acteur_id')['label'].to_dict()
     elif fichier == ACTEURS_PARTICIP_FILE:
@@ -240,19 +299,8 @@ def statistiques() -> None:
 
     acteurs_info     = charger_fichier_acteur()
     acteurs_groupes  = charger_csv(ACTEURS_FILE)['groupe_id']
-    organes_abrev    = charger_csv(ORGANES_FILE)
+    groupes_abrev    = charger_csv(GROUPES_FILE)
     acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
-
-    # def label_for(acteur_id: str) -> str:
-    #     info   = acteurs_info.get(acteur_id)
-    #     prenom = info.get('prenom').strip()
-    #     nom    = info.get('nom').strip()
-    #     name   = (prenom + ' ' + nom).strip()
-    #
-    #     grp_id    = acteurs_groupes.get(acteur_id)
-    #     grp_label = organes_abrev.get(grp_id)
-    #
-    #     return f'{name} ({grp_label})'
 
     # participation : séries pandas (index=acteur_id -> nb_votes) — lu depuis ACTEURS_PARTICIP_FILE
     participation = pd.Series(acteurs_particip).astype(int)
@@ -265,7 +313,7 @@ def statistiques() -> None:
         prenom    = acteurs_info[acteur_id]['prenom']
         nom       = acteurs_info[acteur_id]['nom']
         grp_id    = acteurs_groupes.get(acteur_id)
-        grp_label = organes_abrev.get(grp_id) or ''
+        grp_label = groupes_abrev.get(grp_id) or ''
         nb_votes  = acteurs_particip.get(acteur_id) or 0
 
         return prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(nb_votes) + ' votes'
@@ -303,133 +351,11 @@ def statistiques() -> None:
         print(f'{i}. {acteur_label(str(a))}  -  {acteur_label(str(b))} : {d}')
 
 
-# def umap_2d(n_neighbors: int = 3, min_dist: float = 0, random_state: int = 42) -> None:
-#     """ Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
-#     import umap
-#
-#     # Chargement du tableau des distances
-#     distances = pd.read_csv(TABLE_DISTANCES_FILE, sep=';', index_col=0)
-#
-#     # réduction en 2D avec UMAP
-#     reducer = umap.UMAP(
-#         n_components=2,
-#         metric='precomputed',
-#         n_neighbors=n_neighbors,
-#         min_dist=min_dist,
-#         random_state=random_state
-#     )
-#
-#     reduc = reducer.fit_transform(distances)
-#
-#     result = pd.DataFrame(
-#         reduc,
-#         index=distances.index,
-#         columns=['x', 'y']
-#     )
-#
-#     # Arrondir les coordonnées à 2 décimales
-#     result = result.round(2)
-#
-#     # Sauvegarde du fichier des coordonnées (2 décimales)
-#     result.to_csv(COORDONNES_2D_FILE, sep=';', float_format='%.2f')
-#
-#
-# def umap_3d(n_neighbors: int = 15, min_dist: float = 0.1, random_state: int = 42) -> None:
-#     """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme UMAP"""
-#     import umap
-#
-#     # Chargement du tableau des distances
-#     distances = pd.read_csv(TABLE_DISTANCES_FILE, sep=';', index_col=0)
-#
-#     # réduction en 3D avec UMAP
-#     reducer = umap.UMAP(
-#         n_components=3,
-#         metric='precomputed',
-#         n_neighbors=n_neighbors,
-#         min_dist=min_dist,
-#         random_state=random_state
-#     )
-#
-#     reduc = reducer.fit_transform(distances)
-#
-#     result = pd.DataFrame(
-#         reduc,
-#         index=distances.index,
-#         columns=['x', 'y', 'z']
-#     )
-#
-#     # Arrondir les coordonnées à 2 décimales
-#     result = result.round(2)
-#
-#     # Sauvegarde du fichier des coordonnées 3D (2 décimales)
-#     result.to_csv(COORDONNES_3D_FILE, sep=';', float_format='%.2f')
-#
-#
-# def mds_2d(n_components: int = 2, dissimilarity: str = 'precomputed', random_state: int = 42) -> None:
-#     """Produit le fichier coordonnes.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
-#     from sklearn.manifold import MDS
-#
-#     # Chargement du tableau des distances
-#     distances = pd.read_csv(TABLE_DISTANCES_FILE, sep=';', header=0, index_col=0)
-#
-#     # réduction en 2D avec MDS
-#     mds = MDS(
-#         n_components=n_components,
-#         dissimilarity=dissimilarity,
-#         random_state=random_state
-#     )
-#
-#     coords = mds.fit_transform(distances.values)
-#
-#     # Sauvegarde du fichier des coordonnées
-#     embedding = pd.DataFrame(
-#         coords,
-#         index=distances.index,
-#         columns=[f'MDS{i+1}' for i in range(n_components)]
-#     )
-#
-#     # Arrondir les coordonnées à 2 décimales et sauvegarde
-#     embedding = embedding.round(2)
-#     embedding.to_csv(COORDONNES_2D_FILE, sep=';', float_format='%.2f')
-#
-#     return
-#
-#
-# def mds_3d(n_components: int = 3, dissimilarity: str = 'precomputed', random_state: int = 42) -> None:
-#     """Produit le fichier coordonnes_3d.csv à partir du fichier distances.csv en utilisant l'algorithme MDS"""
-#     from sklearn.manifold import MDS
-#
-#     # Chargement du tableau des distances
-#     distances = pd.read_csv(TABLE_DISTANCES_FILE, sep=';', header=0, index_col=0)
-#
-#     # réduction en 3D avec MDS
-#     mds = MDS(
-#         n_components=n_components,
-#         dissimilarity=dissimilarity,
-#         random_state=random_state
-#     )
-#
-#     coords = mds.fit_transform(distances.values)
-#
-#     # Sauvegarde du fichier des coordonnées 3D
-#     embedding = pd.DataFrame(
-#         coords,
-#         index=distances.index,
-#         columns=['x', 'y', 'z']
-#     )
-#
-#     # Arrondir les coordonnées à 2 décimales et sauvegarde
-#     embedding = embedding.round(2)
-#     embedding.to_csv(COORDONNES_3D_FILE, sep=';', float_format='%.2f')
-#
-#     return
-
-
 def calcul_labels() -> None:
 
     acteurs_info = charger_fichier_acteur()
     acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
-    organes_abrev = charger_csv(ORGANES_FILE)
+    groupes_abrev = charger_csv(GROUPES_FILE)
     acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
 
     with open(ACTEUR_LABEL_FILE, 'w', encoding='utf-8', newline='') as f:
@@ -440,7 +366,7 @@ def calcul_labels() -> None:
             prenom = acteurs_info[acteur_id]['prenom']
             nom = acteurs_info[acteur_id]['nom']
             grp_id = acteurs_groupes.get(acteur_id)
-            grp_label = organes_abrev.get(grp_id) or ''
+            grp_label = groupes_abrev.get(grp_id) or ''
             nb_votes = acteurs_particip.get(acteur_id) or 0
 
             f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(
@@ -478,10 +404,10 @@ def affiche_graphe_2d() -> None:
     embedding = pd.read_csv(COORDONNES_2D_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
-    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
-    organes = charger_csv(ORGANES_FILE)
-    groupes_couleurs = charger_csv(GROUPES_COULEURS_FILE)
-    acteur_labels = charger_csv(ACTEUR_LABEL_FILE)
+    acteurs_groupes    = charger_csv(ACTEURS_FILE)['groupe_id']
+    groupes            = charger_csv(GROUPES_FILE)
+    tendance_couleur   = charger_csv(TENDANCES_COULEUR_FILE)
+    # acteur_labels    = charger_csv(ACTEUR_LABEL_FILE)
     # acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
 
     # # Calcul de la taille des points en fonction du nb de votes
@@ -498,8 +424,8 @@ def affiche_graphe_2d() -> None:
 
     for acteur_id, (x, y) in embedding.iterrows():
         try:
-            groupe_label = organes[acteurs_groupes[acteur_id]]
-            acteur_couleur = groupes_couleurs[groupe_label]
+            groupe_label = groupes[acteurs_groupes[acteur_id]]
+            acteur_couleur = tendance_couleur[groupe_label]
             xs.append(x)
             ys.append(y)
             colors.append(acteur_couleur)
@@ -539,8 +465,8 @@ def affiche_graphe_3d() -> None:
     acteurs_groupe = acteurs_maps['groupe_id']
     acteurs_nom = acteurs_maps['nom']
     acteurs_prenom = acteurs_maps['prenom']
-    organes = charger_csv(ORGANES_FILE)
-    groupes_couleurs = charger_csv(GROUPES_COULEURS_FILE)
+    groupes = charger_csv(GROUPES_FILE)
+    tendance_couleur = charger_csv(TENDANCES_COULEUR_FILE)
     acteur_labels = charger_csv(ACTEUR_LABEL_FILE)
 
     # # Calcul de la taille des points
@@ -563,8 +489,8 @@ def affiche_graphe_3d() -> None:
             x = row['x']
             y = row['y']
             z = row['z']
-            groupe_label = organes[acteurs_groupe[acteur_id]]
-            acteur_couleur = groupes_couleurs[groupe_label]
+            groupe_label = groupes[acteurs_groupe[acteur_id]]
+            acteur_couleur = tendance_couleur[groupe_label]
             xs.append(x)
             ys.append(y)
             zs.append(z)
@@ -589,6 +515,15 @@ def affiche_graphe_3d() -> None:
             sel.annotation.set_text('')
 
     ax.set_title('Projection 3D des votants')
+    # labels des axes pour la vue matplotlib 3D
+    try:
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+        ax.set_zlabel('z')
+    except Exception:
+        # certains backends ou versions peuvent ne pas supporter set_zlabel proprement
+        pass
+
     plt.tight_layout()
 
     # export du graphe 3D en HTML interactif
@@ -614,10 +549,11 @@ def affiche_graphe_3d() -> None:
     plt.show()
 
 
+
 def main() -> None:
     while True:
         choix = input('VOTRE CHOIX : ' \
-                      + green + 'o' + reset + ': organes, ' \
+                      + green + 'g' + reset + ': groupes, ' \
                       + green + 'v' + reset + ': votes, ' \
                       + green + 'd' + reset + ': distances, ' \
                       + green + 'p' + reset + ': participation, ' \
@@ -629,14 +565,17 @@ def main() -> None:
                       + green + 'm3' + reset + ': réduction MDS 3D, ' \
                       + green + 'a' + reset + ': affiche graphe 2D, ' \
                       + green + 'a3' + reset + ': affiche graphe 3D, ' \
+                      + green + 'i' + reset + ': traitement intégral 3D, ' \
                       + green + 'q' + reset + ': quitter\
                       > ')
 
-        match choix:
+        match choix.lower():
             case 'o':
-                traitement_dossier_organe()
+                calcul_groupes()
             case 'v':
-                calcul_acteurs_votes()
+                calcul_acteurs_et_votes()
+            case 't':
+                calcul_vote_moyen_par_tendance()
             case 'd':
                 calcul_distances()
             case 'p':
@@ -645,21 +584,32 @@ def main() -> None:
                 statistiques()
             case 'l':
                 calcul_labels()
-            case 'u':
-                # umap_2d()
-                reduire('umap', n_components=2, n_neighbors=3, min_dist=0, random_state=42)
-            case 'u3':
-                # umap_3d()
-                reduire('umap', n_components=3, n_neighbors=15, min_dist=0.1, random_state=42)
-            case 'm':
-                # mds_2d()
-                reduire('mds', n_components=2, random_state=42)
+            # case 'u':
+            #     # umap_2d()
+            #     reduire('umap', n_components=2, n_neighbors=3, min_dist=0, random_state=42)
+            # case 'u3':
+            #     # umap_3d()
+            #     reduire('umap', n_components=3, n_neighbors=15, min_dist=0.1, random_state=42)
+            # case 'm':
+            #     # mds_2d()
+            #     reduire('mds', n_components=2, random_state=42)
             case 'm3':
                 # mds_3d()
                 reduire('mds', n_components=3, random_state=42)
             case 'a':
                 affiche_graphe_2d()
             case 'a3':
+                affiche_graphe_3d()
+                break
+            case 'i':
+                calcul_groupes()
+                calcul_acteurs_et_votes()
+                calcul_vote_moyen_par_tendance()
+                calcul_distances()
+                calcul_participation()
+                statistiques()
+                calcul_labels()
+                reduire('mds', n_components=3, random_state=42)
                 affiche_graphe_3d()
                 break
             case 'q':

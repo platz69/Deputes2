@@ -1,8 +1,8 @@
-faire 1 passe globale sur le dosiser acteur (sans organe ?) pour aligner avec comportementdes organe
+faire 1 passe globale sur le dossier acteur (sans organe ?) pour aligner avec comportementdes organe
 factoriser, exemple def label_for()
 y a des chargemebts de csv qui renvoient des df, d'autres des dict, faudrait homogénéiser
-création d'un acteur virtuel qui représente le GP et calculer ses votes (somme des votes des acters du GP puis réduction à 1, 0 ou -1
-calculer la distance entre cet acteur virtuel et les autres acteurs pour voir qui est le plus proche et le plus éloigné du GP
+
+calculer la distance entre chaque acteur et sa tendance
 
 
 
