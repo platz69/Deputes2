@@ -246,7 +246,7 @@ def calcul_distances_acteurs() -> None:
     distance_df.to_csv(TABLE_DISTANCES_FILE, sep=';')
 
 
-def calcul_distances_acteurs_groupes() -> None:
+def calcul_distances_acteurs_tendance() -> None:
     """Produit TABLE_DISTANCES_TENDANCE_FILE à partir de TABLE_VOTES_FILE et TENDANCES_VOTE_FILE
     et chaque tendance.
     """
@@ -635,7 +635,7 @@ def main() -> None:
                 calcul_acteurs_et_votes()
                 calcul_vote_tendance()
                 calcul_distances_acteurs()
-                calcul_distances_acteurs_groupes()
+                calcul_distances_acteurs_tendance()
                 calcul_participation()
                 statistiques()
                 calcul_labels()
@@ -643,7 +643,7 @@ def main() -> None:
                 affiche_graphe_3d()
                 break
             case 'x':
-                calcul_distances_acteurs_groupes()
+                calcul_distances_acteurs_tendance()
             case 'q':
                 break
             case _:
