@@ -20,10 +20,10 @@ os.makedirs(TEMP_FOLDER, exist_ok=True)
 ACTEURS_PARTICIP_FILE = os.path.join(TEMP_FOLDER, 'acteurs_particip.csv') # commence par 'acteur_id;groupe_id;nom;prenom\n'
 ACTEUR_LABEL_FILE     = os.path.join(TEMP_FOLDER, 'acteurs_label.csv')    # commence par 'acteur_id;label\n'
 ACTEURS_FILE          = os.path.join(TEMP_FOLDER, 'acteur_groupe_nom_prenom.csv')          # commence par 'acteur_id;groupe_id;nom;prenom\n'
-ACTEURS_X_Y      = os.path.join(TEMP_FOLDER, 'acteurs_x_y.csv')    # commence par 'id_acteur;x;y'
-ACTEURS_X_Y_Z      = os.path.join(TEMP_FOLDER, 'acteurs_x_y_z.csv')    # commence par 'id_acteur;x;y;z'
-GROUPES_ABREV_LIBELLE_FILE            = os.path.join(TEMP_FOLDER, 'groupe_abrev_libelle.csv')          # commence par 'organe_id;libelle_abrev;libelle'
-GROUPES_VOTE_FILE       = os.path.join(TEMP_FOLDER, 'tendance_vote.csv')     # commence par 'tendance;scrutin1;scrutin2;...'
+ACTEURS_X_Y           = os.path.join(TEMP_FOLDER, 'acteurs_x_y.csv')    # commence par 'id_acteur;x;y'
+ACTEURS_X_Y_Z         = os.path.join(TEMP_FOLDER, 'acteurs_x_y_z.csv')    # commence par 'id_acteur;x;y;z'
+GROUPES_ABREV_LIBELLE_FILE = os.path.join(TEMP_FOLDER, 'groupe_abrev_libelle.csv')          # commence par 'organe_id;libelle_abrev;libelle'
+TENDANCES_VOTE_FILE     = os.path.join(TEMP_FOLDER, 'tendance_vote.csv')     # commence par 'tendance;scrutin1;scrutin2;...'
 
 DISTANCES_ACTEUR_ACTEUR_FILE     = os.path.join(TEMP_FOLDER, 'distances_acteur_acteur.csv')# commence par 'acteur_id;distance'
 DISTANCES_ACTEUR_TENDANCE_FILE   = os.path.join(TEMP_FOLDER, 'distances_acteur_tendance.csv')# commence par 'acteur_id;distance'
@@ -31,6 +31,7 @@ DISTANCES_TENDANCE_TENDANCE_FILE = os.path.join(TEMP_FOLDER, 'distances_tendance
 
 TABLE_VOTES_FILE        = os.path.join(TEMP_FOLDER, 'table_votes.csv')      # tableau acteur_id vs scrutin_id
 TABLE_DISTANCES_FILE    = os.path.join(TEMP_FOLDER, 'table_distances.csv')  # tableau acteur_1_id vs acteur_2_id
+TABLE_DISTANCES_TENDANCE_FILE    = os.path.join(TEMP_FOLDER, 'table_distances_tendance.csv')  # tableau acteur_id vs tendance_libelle
 
 # couleurs d'affichage dans la console
 blue, green = '\033[34m', '\033[32m'
@@ -212,14 +213,14 @@ def calcul_vote_tendance():
 
     # Écriture du CSV GROUPES_VOTE_FILE (valeurs normalisées)
     try:
-        df_norm.to_csv(GROUPES_VOTE_FILE, sep=';', index=True)
+        df_norm.to_csv(TENDANCES_VOTE_FILE, sep=';', index=True)
     except Exception as e:
-        print(f"Erreur écriture {GROUPES_VOTE_FILE}: {e}")
+        print(f"Erreur écriture {TENDANCES_VOTE_FILE}: {e}")
 
     return df_norm
 
 def calcul_distances_acteurs() -> None:
-    """ Produit le fichier distances.csv à partir du fichier votes.csv """
+    """ Produit le fichier TABLE_DISTANCES_FILE à partir du fichier TABLE_VOTES_FILE """
     import numpy as np
 
     # Lecture du fichier CSV, la première colonne est utilisée comme index
@@ -243,32 +244,29 @@ def calcul_distances_acteurs() -> None:
     # Sauvegarde du tableau des distances
     distance_df = pd.DataFrame(dist, index=deputes, columns=deputes)
     distance_df.to_csv(TABLE_DISTANCES_FILE, sep=';')
+
 
 def calcul_distances_acteurs_groupes() -> None:
-    """ Produit le fichier distances.csv à partir du fichier votes.csv """
+    """Produit TABLE_DISTANCES_TENDANCE_FILE à partir de TABLE_VOTES_FILE et TENDANCES_VOTE_FILE
+    et chaque tendance.
+    """
     import numpy as np
 
-    # Lecture du fichier CSV, la première colonne est utilisée comme index
-    df = charger_votes()  # noqa
+    df_acteurs = pd.read_csv(TABLE_VOTES_FILE, sep=';', index_col=0)
+    df_tendances = pd.read_csv(TENDANCES_VOTE_FILE, sep=';', index_col=0)
 
-    deputes = df.index
-    votes = df.to_numpy()
-    nb_deputes = df.shape[0]
+    # mais çasert à riença !  et dasn la def precedente ?
+    df_a = df_acteurs.apply(pd.to_numeric, errors='coerce').fillna(0).astype(int)
+    df_t = df_tendances.apply(pd.to_numeric, errors='coerce').fillna(0).astype(int)
 
-    # Initialisation de la matrice des distances avec des zéros
-    dist = np.zeros((nb_deputes, nb_deputes), dtype=int)
+    votes_acteurs = df_a.to_numpy()
+    votes_tendances = df_t.to_numpy()
 
-    # Calcul des distances (même vote : +0, une abstention : +1, opposé : +2)
-    for i in range(nb_deputes):
-        # la matrice est symétrique, on ne parcourt que la moitié supérieure
-        for j in range(i, nb_deputes):
-            d = np.sum(np.abs(votes[i, :] - votes[j, :]))
-            dist[i, j] = d
-            dist[j, i] = d
+    # Broadcasting : (n_acteurs, 1, n_cols) - (1, n_tendances, n_cols) -> (n_acteurs, n_tendances)
+    dist = np.abs(votes_acteurs[:, None, :] - votes_tendances[None, :, :]).sum(axis=2)
 
-    # Sauvegarde du tableau des distances
-    distance_df = pd.DataFrame(dist, index=deputes, columns=deputes)
-    distance_df.to_csv(TABLE_DISTANCES_FILE, sep=';')
+    distance_df = pd.DataFrame(dist, index=df_a.index.astype(str), columns=df_t.index.astype(str))
+    distance_df.to_csv(TABLE_DISTANCES_TENDANCE_FILE, sep=';')
 
 
 def charger_fichier_acteur() -> Dict[str, Dict[str, str]]:
@@ -404,7 +402,7 @@ def calcul_labels() -> None:
 
 
 def reduire(algo: str, n_components: int, **kwargs) -> None:
-    """Produit coordonnes.csv (2D) ou coordonnes_3d.csv (3D) via UMAP ou MDS"""
+    """Produit ACTEURS_X_Y (2D) ou ACTEURS_X_Y_Z (3D) via UMAP ou MDS"""
 
     distances = charger_distances()
 
@@ -426,7 +424,7 @@ def reduire(algo: str, n_components: int, **kwargs) -> None:
 
 
 def affiche_graphe_2d() -> None:
-    """Affiche un graphe 2D à partir du fichier coordonnes.csv et des fichiers auxiliaires"""
+    """Affiche un graphe 2D à partir du fichier ACTEURS_X_Y et des fichiers auxiliaires"""
     import matplotlib.pyplot as plt
     import mplcursors
 
@@ -481,7 +479,7 @@ def affiche_graphe_2d() -> None:
 
 
 def affiche_graphe_3d() -> None:
-    """Affiche un graphe 3D à partir du fichier coordonnes_3d.csv et des fichiers auxiliaires"""
+    """Affiche un graphe 3D à partir du fichier ACTEURS_X_Y_Z et des fichiers auxiliaires"""
     import matplotlib.pyplot as plt
     import mplcursors
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
@@ -596,6 +594,7 @@ def main() -> None:
                       + green + 'a' + reset + ': affiche graphe 2D, ' \
                       + green + 'a3' + reset + ': affiche graphe 3D, ' \
                       + green + 'i' + reset + ': traitement intégral 3D, ' \
+                      + green + 'x' + reset + ': fonction test, '\
                       + green + 'q' + reset + ': quitter\
                       > ')
 
@@ -636,12 +635,15 @@ def main() -> None:
                 calcul_acteurs_et_votes()
                 calcul_vote_tendance()
                 calcul_distances_acteurs()
+                calcul_distances_acteurs_groupes()
                 calcul_participation()
                 statistiques()
                 calcul_labels()
                 reduire('mds', n_components=3, random_state=42)
                 affiche_graphe_3d()
                 break
+            case 'x':
+                calcul_distances_acteurs_groupes()
             case 'q':
                 break
             case _:
