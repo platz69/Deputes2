@@ -19,17 +19,18 @@ TENDANCES_COULEUR_FILE = 'abrev_libel_tendance_couleur.csv' # abrev;libelle;tend
 TEMP_FOLDER = 'temp'  # répertoire temporaire pour les fichiers CSV intermédiaires
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 
+# fichiers à nb de colonnes fixe
 ACTEURS_FILE                     = os.path.join(TEMP_FOLDER, 'acteur_groupe_nom_prenom.csv')   # 'acteur_id;groupe_id;nom;prenom'
 ACTEURS_PARTICIP_FILE            = os.path.join(TEMP_FOLDER, 'acteur_particip.csv')            # 'acteur_id;nb_votes'
 ACTEUR_TENDANCE_RELLE            = os.path.join(TEMP_FOLDER, 'acteur_tendance_reelle.csv')     # 'acteur_id;tendance;tendance'
 ACTEUR_LABEL_FILE                = os.path.join(TEMP_FOLDER, 'acteur_label.csv')               # 'acteur_id;label'
-ACTEURS_X_Y                      = os.path.join(TEMP_FOLDER, 'acteur_x_y.csv')                 # 'id_acteur;x;y'
-ACTEURS_X_Y_Z                    = os.path.join(TEMP_FOLDER, 'acteur_x_y_z.csv')               # 'id_acteur;x;y;z'
+ACTEURS_X_Y_FILE                 = os.path.join(TEMP_FOLDER, 'acteur_x_y.csv')                 # 'id_acteur;x;y'
+ACTEURS_X_Y_Z_FILE               = os.path.join(TEMP_FOLDER, 'acteur_x_y_z.csv')               # 'id_acteur;x;y;z'
 GROUPES_ABREV_LIBELLE_FILE       = os.path.join(TEMP_FOLDER, 'groupe_abrev_libelle.csv')       # 'groupe_id;abrev;libelle'
 
+# fichiers à nb de colonnes variable
 ACTEUR_VOTE_FILE                 = os.path.join(TEMP_FOLDER, 'acteur_vote.csv')                # acteur_id   vs scrutin_id
 TENDANCE_VOTE_FILE               = os.path.join(TEMP_FOLDER, 'tendance_vote.csv')              # tendance_id vs scrutin_id
-
 DISTANCES_ACTEUR_ACTEUR_FILE     = os.path.join(TEMP_FOLDER, 'distance_acteur_acteur.csv')     # 'acteur_id  vs acteur_id'
 DISTANCES_ACTEUR_TENDANCE_FILE   = os.path.join(TEMP_FOLDER, 'distance_acteur_tendance.csv')   # 'acteur_id  vs libelle'
 DISTANCES_TENDANCE_TENDANCE_FILE = os.path.join(TEMP_FOLDER, 'distance_tendance_tendance.csv') # 'libelle    vs libelle'
@@ -166,7 +167,7 @@ def calcul_acteurs_et_votes() -> None:
             f.write(';'.join([acteur_id, votant_dict[acteur_id], info['nom'], info['prenom']]) + '\n')
 
 
-def calcul_vote_tendance():
+def calcul_tendance_vote():
     """Calcule la somme des votes (-1, 0, +1) par tendance ET par scrutin
 
     Parcourt TABLE_VOTES_FILE (index = acteur_id, colonnes = scrutins) et utilise
@@ -176,11 +177,7 @@ def calcul_vote_tendance():
     """
 
     # lecture du tableau des votes
-    try:
-        df_votes = pd.read_csv(ACTEUR_VOTE_FILE, sep=';', index_col=0)
-    except Exception as e:
-        print(f"Impossible de lire {ACTEUR_VOTE_FILE}: {e}")
-        return pd.DataFrame()
+    df_votes = pd.read_csv(ACTEUR_VOTE_FILE, sep=';', index_col=0)
 
     # conversion en valeurs numériques (-1/0/1), remplacer valeurs manquantes par 0
     df_num = df_votes.apply(pd.to_numeric, errors='coerce').fillna(0).astype(int)
@@ -309,7 +306,6 @@ def acteur_tendance_relle() -> None:
             f.write(f'{acteur_id};{tendance_declaree};{groupe_reel_id}\n')
 
 
-
 def calcul_participation() -> None:
     """Produit le fichier ACTEURS_PARTICIP_FILE
     """
@@ -368,7 +364,7 @@ def statistiques() -> None:
     bottom5 = participation.sort_values(ascending=True).head(5)
 
     def acteur_label(acteur_id: str) -> str:
-        """Retourne la chaîne 'prénom nom++acteur_id+(groupe)+nb_votes'."""
+        """Retourne la chaîne 'prénom+nom+acteur_id+(groupe)+nb_votes'."""
 
         prenom    = acteurs_info[acteur_id]['prenom']
         nom       = acteurs_info[acteur_id]['nom']
@@ -451,7 +447,7 @@ def reduire(algo: str, n_components: int, **kwargs) -> None:
     columns = ['x', 'y'] if n_components == 2 else ['x', 'y', 'z']
     result = pd.DataFrame(coords, index=distances.index, columns=columns).round(2)
 
-    out_file = ACTEURS_X_Y if n_components == 2 else ACTEURS_X_Y_Z
+    out_file = ACTEURS_X_Y_FILE if n_components == 2 else ACTEURS_X_Y_Z_FILE
     result.to_csv(out_file, sep=';', float_format='%.2f')
 
 
@@ -461,7 +457,7 @@ def affiche_graphe_2d() -> None:
     import mplcursors
 
     # lecture du fichier des coordonnées
-    embedding = pd.read_csv(ACTEURS_X_Y, sep=';', index_col=0)
+    embedding = pd.read_csv(ACTEURS_X_Y_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
     acteurs_groupes    = charger_csv(ACTEURS_FILE)['groupe_id']
@@ -518,7 +514,7 @@ def affiche_graphe_3d() -> None:
     import plotly.graph_objects as go
 
     # lecture du fichier des coordonnées 3D
-    embedding = pd.read_csv(ACTEURS_X_Y_Z, sep=';', index_col=0)
+    embedding = pd.read_csv(ACTEURS_X_Y_Z_FILE, sep=';', index_col=0)
 
     # Chargement des tables auxiliaires
     acteurs_maps = charger_csv(ACTEURS_FILE)
@@ -636,7 +632,7 @@ def main() -> None:
             case 'v':
                 calcul_acteurs_et_votes()
             case 't':
-                calcul_vote_tendance()
+                calcul_tendance_vote()
             case 'd':
                 calcul_distances_acteurs()
             case 'p':
@@ -665,7 +661,7 @@ def main() -> None:
             case 'i':
                 calcul_groupes()
                 calcul_acteurs_et_votes()
-                calcul_vote_tendance()
+                calcul_tendance_vote()
                 calcul_distances_acteurs()
                 calcul_distances_acteurs_tendance()
                 calcul_participation()

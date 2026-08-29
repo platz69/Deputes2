@@ -2,7 +2,9 @@ faire 1 passe globale sur le dossier acteur (sans organe ?) pour aligner avec co
 factoriser, exemple def label_for()
 y a des chargemebts de csv qui renvoient des df, d'autres des dict, faudrait homogénéiser
 
-déclarer les en-t^ts 1 seule
+déclarer les en-t^ts 1 seule fois
+charger_fichier_acteur() putilisé 2 fos et pas come es autrezs, supprimer, et charge ACTEURS_FILE 2fois de suite danns sttisatiques() !
+CoHérene singlier/*luriel
 
 
 
