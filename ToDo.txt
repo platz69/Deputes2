@@ -2,7 +2,7 @@ faire 1 passe globale sur le dossier acteur (sans organe ?) pour aligner avec co
 factoriser, exemple def label_for()
 y a des chargemebts de csv qui renvoient des df, d'autres des dict, faudrait homogénéiser
 
-dezipper scrutins recalcl dist tendace et calcuul_acteur_tendace pour veriffierr s'i c'est un traître
+déclarer les en-t^ts 1 seule
 
 
 
