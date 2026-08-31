@@ -15,9 +15,9 @@ ACTEURS_FILE, GROUPES_ABREV_LIBELLE_FILE, TENDANCES_COULEUR_FILE, DISTANCES_ACTE
                                                     ---  acteur_tendance_relle()     ---> ACTEUR_TENDANCE_RELLE
 ACTEUR_VOTE_FILE                                    ---  calcul_participation()      ---> ACTEURS_PARTICIP_FILE
 ACTEURS_FILE, GROUPES_ABREV_LIBELLE_FILE, ACTEURS_PARTICIP_FILE
-                                                    ---  statistiques()              --->  None
-ACTEURS_FILE, GROUPES_ABREV_LIBELLE_FILE, ACTEURS_PARTICIP_FILE
                                                     ---  calcul_labels()             ---> ACTEUR_LABEL_FILE
+ACTEURS_FILE, GROUPES_ABREV_LIBELLE_FILE, ACTEURS_PARTICIP_FILE
+                                                    ---  statistiques()              --->  None
 DISTANCES_ACTEUR_ACTEUR_FILE                        ---  reduire()                   ---> ACTEURS_X_Y_FILE, ACTEURS_X_Y_Z_FILE
 
 ACTEURS_X_Y_FILE, ACTEURS_X_Y_Z_FILE, ACTEURS_FILE, GROUPES_ABREV_LIBELLE_FILE, TENDANCES_COULEUR_FILE, ACTEUR_LABEL_FILE

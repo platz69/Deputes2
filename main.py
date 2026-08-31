@@ -36,12 +36,7 @@ DISTANCES_ACTEUR_TENDANCE_FILE   = os.path.join(TEMP_FOLDER, 'distance_acteur_te
 DISTANCES_TENDANCE_TENDANCE_FILE = os.path.join(TEMP_FOLDER, 'distance_tendance_tendance.csv') # 'libelle    vs libelle'
 
 # couleurs d'affichage dans la console
-blue, green = '\033[34m', '\033[32m'
-reset = '\033[0m'
-
-
-def charger_votes() -> pd.DataFrame:
-    return pd.read_csv(ACTEUR_VOTE_FILE, sep=';', index_col=0)
+BLUE, GREEN, RESET = '\033[34m', '\033[32m', '\033[0m'
 
 
 def charger_distances() -> pd.DataFrame:
@@ -219,7 +214,7 @@ def calcul_distances_acteurs() -> None:
     import numpy as np
 
     # Lecture du fichier CSV, la première colonne est utilisée comme index
-    df = charger_votes()  # noqa
+    df = charger_csv(ACTEUR_VOTE_FILE)
 
     deputes = df.index
     votes = df.to_numpy()
@@ -264,15 +259,6 @@ def calcul_distances_acteurs_tendance() -> None:
     distance_df.to_csv(DISTANCES_ACTEUR_TENDANCE_FILE, sep=';')
 
 
-def charger_fichier_acteur() -> Dict[str, Dict[str, str]]:
-    """Charge les noms et prénoms des acteurs depuis ACTEURS_FILE (produit par calcul_acteurs_et_votes())
-    et retourne un dictionnaire {acteur_uid: {'nom': nom, 'prenom': prenom}}"""
-
-    df = pd.read_csv(ACTEURS_FILE, sep=';', dtype=str).set_index('acteur_id')
-    return {str(acteur_id): {'nom': str(row['nom']), 'prenom': str(row['prenom'])}
-            for acteur_id, row in df.iterrows()}
-
-
 def acteur_tendance_relle() -> None:
     """Produit le fichier ACTEUR_TENDANCE_RELLE (en-tête 'acteur_id;groupe_id;groupe_reel_id')
 
@@ -284,10 +270,10 @@ def acteur_tendance_relle() -> None:
       d'après DISTANCES_ACTEUR_TENDANCE_FILE (distance minimale = tendance la plus proche).
     """
 
-    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
-    groupes_abrev = charger_csv(GROUPES_ABREV_LIBELLE_FILE)
-    groupes_tendance = pd.read_csv(TENDANCES_COULEUR_FILE, sep=';').set_index('abrev')['tendance'].to_dict()
-    df_distances = pd.read_csv(DISTANCES_ACTEUR_TENDANCE_FILE, sep=';', index_col=0)
+    acteurs_groupes    = charger_csv(ACTEURS_FILE)['groupe_id']
+    groupes_abrev      = charger_csv(GROUPES_ABREV_LIBELLE_FILE)
+    groupes_tendance   = pd.read_csv(TENDANCES_COULEUR_FILE, sep=';').set_index('abrev')['tendance'].to_dict()
+    df_distances       = pd.read_csv(DISTANCES_ACTEUR_TENDANCE_FILE, sep=';', index_col=0)
     df_distances.index = df_distances.index.astype(str)
 
     # tendance réellement la plus proche = colonne de distance minimale
@@ -310,7 +296,7 @@ def calcul_participation() -> None:
     """Produit le fichier ACTEURS_PARTICIP_FILE
     """
 
-    df = charger_votes()
+    df = charger_csv(ACTEUR_VOTE_FILE)
 
     # Convertir en numérique et remplacer les non-nombres par 0
     df_num = df.apply(pd.to_numeric, errors='coerce').astype(int).fillna(0)
@@ -325,16 +311,37 @@ def calcul_participation() -> None:
             f.write(f'{acteur};{count}\n')
 
 
-def charger_csv(fichier: str) -> Union[Dict[Hashable, Any], Dict[str, Dict[Hashable, Any]]]:
-    """Charge une table auxiliaire CSV (';') et la retourne sous forme de dict.
-    - table à une seule colonne de valeur  -> {index_col: value_col}
-    - table à plusieurs colonnes de valeur -> {colonne: {index_col: colonne}, ...}
-      (dict de dicts ; ACTEURS_FILE est alors relu une fois par colonne)
+def calcul_labels() -> None:
 
-    Attention DISTANCES_ACTEUR_ACTEUR_FILE et TABLE_VOTES_FILE ne doivent pas être chargés avec cette fonction
-    car pas structurés de la même façon
+    acteurs               = charger_csv(ACTEURS_FILE)
+    groupes_abrev_libelle = charger_csv(GROUPES_ABREV_LIBELLE_FILE)
+    acteurs_particip      = charger_csv(ACTEURS_PARTICIP_FILE)
+
+    acteurs_groupes = acteurs['groupe_id']
+    acteurs_nom     = acteurs['nom']
+    acteurs_prenom  = acteurs['prenom']
+
+    with open(ACTEUR_LABEL_FILE, 'w', encoding='utf-8', newline='') as f:
+        f.write('acteur_id;label\n')
+        # Parcours des acteurs ayant participé à cette législature
+        for acteur_id in acteurs_particip:
+            acteur_id = str(acteur_id)
+            prenom = acteurs_prenom.get(acteur_id, '')
+            nom = acteurs_nom.get(acteur_id, '')
+            grp_id = acteurs_groupes.get(acteur_id)
+            grp_label = groupes_abrev_libelle.get(grp_id) or ''
+            nb_votes = acteurs_particip.get(acteur_id) or 0
+
+            f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(nb_votes) + ' votes\n')
+
+def charger_csv(fichier: str) -> Union[pd.DataFrame, Dict[Hashable, Any], Dict[str, Dict[Hashable, Any]]]:
+    """Charge une table CSV (';') et la retourne sous forme de DataFrame ou de dict.
+    - tables de données matricielles (ex. ACTEUR_VOTE_FILE) -> DataFrame
+    - tables auxiliaires -> dicts de mapping
     """
-    if fichier == ACTEURS_FILE:
+    if fichier == ACTEUR_VOTE_FILE:
+        return pd.read_csv(ACTEUR_VOTE_FILE, sep=';', index_col=0)
+    elif fichier == ACTEURS_FILE:
         return {col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
                 for col in ['groupe_id', 'nom', 'prenom']}
     elif fichier == GROUPES_ABREV_LIBELLE_FILE:
@@ -353,34 +360,21 @@ def statistiques() -> None:
     """Affiche des statistiques de participation des acteurs.
     """
 
-    acteurs_info     = charger_fichier_acteur()
-    acteurs_groupes  = charger_csv(ACTEURS_FILE)['groupe_id']
-    groupes_abrev    = charger_csv(GROUPES_ABREV_LIBELLE_FILE)
     acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
+    acteur_labels    = charger_csv(ACTEUR_LABEL_FILE)
 
     # participation : séries pandas (index=acteur_id -> nb_votes) — lu depuis ACTEURS_PARTICIP_FILE
     participation = pd.Series(acteurs_particip).astype(int)
-    top5    = participation.sort_values(ascending=False).head(5)
-    bottom5 = participation.sort_values(ascending=True).head(5)
+    top5          = participation.sort_values(ascending=False).head(5)
+    bottom5       = participation.sort_values(ascending=True).head(5)
 
-    def acteur_label(acteur_id: str) -> str:
-        """Retourne la chaîne 'prénom+nom+acteur_id+(groupe)+nb_votes'."""
-
-        prenom    = acteurs_info[acteur_id]['prenom']
-        nom       = acteurs_info[acteur_id]['nom']
-        grp_id    = acteurs_groupes.get(acteur_id)
-        grp_label = groupes_abrev.get(grp_id) or ''
-        nb_votes  = acteurs_particip.get(acteur_id) or 0
-
-        return prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(nb_votes) + ' votes'
-
-    print(blue + 'Top 5 des participants:' + reset)
+    print(BLUE + 'Top 5 des participants:' + RESET)
     for i, (acteur, count) in enumerate(top5.items(), start=1):
-        print(f'{i}. {acteur_label(str(acteur))}: {count}')
+        print(f'{i}. {acteur_labels.get(str(acteur), str(acteur))}: {count}')
 
-    print(blue + 'Top 5 des absents:' + reset)
+    print(BLUE + 'Top 5 des absents:' + RESET)
     for i, (acteur, count) in enumerate(bottom5.items(), start=1):
-        print(f'{i}. {acteur_label(str(acteur))}: {count}')
+        print(f'{i}. {acteur_labels.get(str(acteur), str(acteur))}: {count}')
 
     # Calculer les paires les plus proches/éloignées à partir de DISTANCES_ACTEUR_ACTEUR_FILE
     distances_df = charger_distances()
@@ -398,35 +392,13 @@ def statistiques() -> None:
     closest5 = pairs_sorted[:5]
     farthest5 = pairs_sorted[-5:][::-1]
 
-    print(blue + '\n5 paires les plus proches (distance la plus petite):' + reset)
+    print(BLUE + '\n5 paires les plus proches (distance la plus petite):' + RESET)
     for i, (a, b, d) in enumerate(closest5, start=1):
-        print(f'{i}. {acteur_label(str(a))}  -  {acteur_label(str(b))} : {d}')
+        print(f'{i}. {acteur_labels.get(str(a), str(a))}  -  {acteur_labels.get(str(b), str(b))} : {d}')
 
-    print(blue + '\n5 paires les plus éloignées (distance la plus grande):' + reset)
+    print(BLUE + '\n5 paires les plus éloignées (distance la plus grande):' + RESET)
     for i, (a, b, d) in enumerate(farthest5, start=1):
-        print(f'{i}. {acteur_label(str(a))}  -  {acteur_label(str(b))} : {d}')
-
-
-def calcul_labels() -> None:
-
-    acteurs_info = charger_fichier_acteur()
-    acteurs_groupes = charger_csv(ACTEURS_FILE)['groupe_id']
-    groupes_abrev = charger_csv(GROUPES_ABREV_LIBELLE_FILE)
-    acteurs_particip = charger_csv(ACTEURS_PARTICIP_FILE)
-
-    with open(ACTEUR_LABEL_FILE, 'w', encoding='utf-8', newline='') as f:
-        f.write('acteur_id;label\n')
-        # Parcours des acteurs ayant participé à cette législature
-        for acteur_id in acteurs_particip:
-            acteur_id = str(acteur_id)
-            prenom = acteurs_info[acteur_id]['prenom']
-            nom = acteurs_info[acteur_id]['nom']
-            grp_id = acteurs_groupes.get(acteur_id)
-            grp_label = groupes_abrev.get(grp_id) or ''
-            nb_votes = acteurs_particip.get(acteur_id) or 0
-
-            f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(
-                nb_votes) + ' votes\n')
+        print(f'{i}. {acteur_labels.get(str(a), str(a))}  -  {acteur_labels.get(str(b), str(b))} : {d}')
 
 
 def reduire(algo: str, n_components: int, **kwargs) -> None:
@@ -609,21 +581,21 @@ def affiche_graphe_3d() -> None:
 def main() -> None:
     while True:
         choix = input('VOTRE CHOIX : ' \
-                      + green + 'g' + reset + ': groupes, ' \
-                      + green + 'v' + reset + ': votes, ' \
-                      + green + 'd' + reset + ': distances, ' \
-                      + green + 'p' + reset + ': participation, ' \
-                      # + green + 's' + reset + ': statistiques, ' \
-                      + green + 'l' + reset + ': labels, ' \
-                      # + green + 'u' + reset + ': réduction UMAP 2D, ' \
-                      # + green + 'u3' + reset + ': réduction UMAP 3D, ' \
-                      # + green + 'm' + reset + ': réduction MDS 2D, ' \
-                      + green + 'm3' + reset + ': réduction MDS 3D, ' \
-                      + green + 'a' + reset + ': affiche graphe 2D, ' \
-                      + green + 'a3' + reset + ': affiche graphe 3D, ' \
-                      + green + 'i' + reset + ': traitement intégral 3D, ' \
-                      + green + 'x' + reset + ': fonction test, '\
-                      + green + 'q' + reset + ': quitter\
+                      + GREEN + 'g' + RESET + ': groupes, ' \
+                      + GREEN + 'v' + RESET + ': votes, ' \
+                      + GREEN + 'd' + RESET + ': distances, ' \
+                      + GREEN + 'p' + RESET + ': participation, ' \
+                      # + GREEN + 's' + RESET + ': statistiques, ' \
+                      + GREEN + 'l' + RESET + ': labels, ' \
+                      # + GREEN + 'u' + RESET + ': réduction UMAP 2D, ' \
+                      # + GREEN + 'u3' + RESET + ': réduction UMAP 3D, ' \
+                      # + GREEN + 'm' + RESET + ': réduction MDS 2D, ' \
+                      + GREEN + 'm3' + RESET + ': réduction MDS 3D, ' \
+                      + GREEN + 'a' + RESET + ': affiche graphe 2D, ' \
+                      + GREEN + 'a3' + RESET + ': affiche graphe 3D, ' \
+                      + GREEN + 'i' + RESET + ': traitement intégral 3D, ' \
+                      + GREEN + 'x' + RESET + ': fonction test, '\
+                      + GREEN + 'q' + RESET + ': quitter\
                       > ')
 
         match choix.lower():
@@ -665,8 +637,8 @@ def main() -> None:
                 calcul_distances_acteurs()
                 calcul_distances_acteurs_tendance()
                 calcul_participation()
-                statistiques()
                 calcul_labels()
+                statistiques()
                 reduire('mds', n_components=3, random_state=42)
                 affiche_graphe_3d()
                 break
