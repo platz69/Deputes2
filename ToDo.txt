@@ -1,10 +1,8 @@
-faire 1 passe globale sur le dossier acteur (sans organe ?) pour aligner avec comportementdes organe
-factoriser, exemple def label_for()
-y a des chargemebts de csv qui renvoient des df, d'autres des dict, faudrait homogénéiser
-
 déclarer les en-t^ts 1 seule fois
-CoHérene singlier/*luriel
-unifier pd.read_csv eet charger_csv > corriger les warnings rouges
+calculer DISTANCES_TENDANCE_TENDANCE_FILE et afficher
+
+caluler acteur_tendance_reelle
+
 
 
 

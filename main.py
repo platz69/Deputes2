@@ -188,7 +188,7 @@ def calcul_tendance_vote():
         aid = str(acteur_id)
         grp = acteurs_groupes.get(aid)
         abrev = groupes_abrev.get(grp)
-        tend = groupes_tendance.get(abrev) if abrev is not None else None
+        tend = groupes_tendance.get(str(abrev)) if abrev is not None else None
         if not tend:
             tend = 'Inconnu'
         tendances.append(tend)
@@ -284,7 +284,7 @@ def acteur_tendance_relle() -> None:
         f.write('acteur_id;groupe_id;groupe_reel_id\n')
         for acteur_id in df_distances.index:
             grp = acteurs_groupes.get(acteur_id)
-            abrev = groupes_abrev.get(grp)
+            abrev = str(groupes_abrev.get(grp))
             tendance_declaree = groupes_tendance.get(abrev) if abrev is not None else None
             if not tendance_declaree:
                 tendance_declaree = 'Inconnu'
@@ -332,7 +332,7 @@ def calcul_labels() -> None:
             grp_label = groupes_abrev_libelle.get(grp_id) or ''
             nb_votes = acteurs_particip.get(acteur_id) or 0
 
-            f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + grp_label + ') ' + str(nb_votes) + ' votes\n')
+            f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + str(grp_label) + ') ' + str(nb_votes) + ' votes\n')
 
 def charger_csv(fichier: str) -> Union[pd.DataFrame, Dict[Hashable, Any], Dict[str, Dict[Hashable, Any]]]:
     """Charge une table CSV (';') et la retourne sous forme de DataFrame ou de dict.
@@ -599,7 +599,7 @@ def main() -> None:
                       > ')
 
         match choix.lower():
-            case 'o':
+            case 'g':
                 calcul_groupes()
             case 'v':
                 calcul_acteurs_et_votes()
@@ -643,6 +643,7 @@ def main() -> None:
                 affiche_graphe_3d()
                 break
             case 'x':
+                calcul_distances_acteurs_tendance()
                 acteur_tendance_relle()
             case 'q':
                 break
