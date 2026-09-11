@@ -13,7 +13,7 @@ ORGANES_FOLDER         = 'organe'               # répertoire où l'on dépose l
 SCRUTINS_FOLDER        = 'scrutin'              # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
 
 # paramètres
-TENDANCES_COULEUR_FILE = 'abrev_libel_tendance_couleur.csv' # abrev;libelle;tendance;couleur
+TENDANCES_COULEUR_FILE = 'groupe_tendance_couleur.csv' # abrev;libelle;tendance;couleur
 
 # sorties
 TEMP_FOLDER = 'temp'  # répertoire temporaire pour les fichiers CSV intermédiaires
@@ -26,6 +26,8 @@ ACTEUR_TENDANCE_RELLE            = os.path.join(TEMP_FOLDER, 'acteur_tendance_re
 ACTEUR_LABEL_FILE                = os.path.join(TEMP_FOLDER, 'acteur_label.csv')               # 'acteur_id;label'
 ACTEURS_X_Y_FILE                 = os.path.join(TEMP_FOLDER, 'acteur_x_y.csv')                 # 'id_acteur;x;y'
 ACTEURS_X_Y_Z_FILE               = os.path.join(TEMP_FOLDER, 'acteur_x_y_z.csv')               # 'id_acteur;x;y;z'
+TENDANCE_X_Y_FILE               = os.path.join(TEMP_FOLDER, 'tendance_x_y.csv')               # 'id_acteur;x;y'
+TENDANCES_X_Y_Z_FILE             = os.path.join(TEMP_FOLDER, 'tendance_x_y_z.csv')             # 'id_acteur;x;y;z'
 GROUPES_ABREV_LIBELLE_FILE       = os.path.join(TEMP_FOLDER, 'groupe_abrev_libelle.csv')       # 'groupe_id;abrev;libelle'
 
 # fichiers à nb de colonnes variable
@@ -41,6 +43,10 @@ BLUE, GREEN, RESET = '\033[34m', '\033[32m', '\033[0m'
 
 def charger_distances() -> pd.DataFrame:
     return pd.read_csv(DISTANCES_ACTEUR_ACTEUR_FILE, sep=';', index_col=0)
+
+
+def charger_distances_tendances() -> pd.DataFrame:
+    return pd.read_csv(DISTANCES_TENDANCE_TENDANCE_FILE, sep=';', index_col=0)
 
 
 def calcul_groupes() -> None:
@@ -259,7 +265,34 @@ def calcul_distances_acteurs_tendance() -> None:
     distance_df.to_csv(DISTANCES_ACTEUR_TENDANCE_FILE, sep=';')
 
 
-def acteur_tendance_relle() -> None:
+def calcul_distances_tendances() -> None:
+    """ Produit le fichier DISTANCES_TENDANCE_TENDANCE_FILE à partir du fichier TENDANCE_VOTE_FILE """
+    import numpy as np
+
+    # Lecture du fichier CSV, la première colonne est utilisée comme index
+    df = charger_csv(TENDANCE_VOTE_FILE)
+
+    tendances    = df.index
+    votes        = df.to_numpy()
+    nb_tendances = df.shape[0]
+
+    # Initialisation de la matrice des distances avec des zéros
+    dist = np.zeros((nb_tendances, nb_tendances), dtype=int)
+
+    # Calcul des distances (même vote : +0, une abstention : +1, opposé : +2)
+    for i in range(nb_tendances):
+        # la matrice est symétrique, on ne parcourt que la moitié supérieure
+        for j in range(i, nb_tendances):
+            d = np.sum(np.abs(votes[i, :] - votes[j, :]))
+            dist[i, j] = d
+            dist[j, i] = d
+
+    # Sauvegarde du tableau des distances
+    distance_df = pd.DataFrame(dist, index=tendances, columns=tendances)
+    distance_df.to_csv(DISTANCES_TENDANCE_TENDANCE_FILE, sep=';')
+
+
+def calcul_acteur_tendance_relle() -> None:
     """Produit le fichier ACTEUR_TENDANCE_RELLE (en-tête 'acteur_id;groupe_id;groupe_reel_id')
 
     Pour chaque acteur :
@@ -341,16 +374,16 @@ def charger_csv(fichier: str) -> Any:
     """
 
     if fichier == ACTEUR_VOTE_FILE:
-        resultat: pd.DataFrame = pd.read_csv(
-            ACTEUR_VOTE_FILE, sep=';', index_col=0
-        )
+        resultat: pd.DataFrame = pd.read_csv(ACTEUR_VOTE_FILE, sep=';', index_col=0)
+        return resultat
+
+    elif fichier == TENDANCE_VOTE_FILE:
+        resultat: pd.DataFrame = pd.read_csv(TENDANCE_VOTE_FILE, sep=';', index_col=0)
         return resultat
 
     elif fichier == ACTEURS_FILE:
-        resultat: dict[str, dict[Any, Any]] = {
-            col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
-            for col in ['groupe_id', 'nom', 'prenom']
-        }
+        resultat: dict[str, dict[Any, Any]] = {col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
+                                                for col in ['groupe_id', 'nom', 'prenom']}
         return resultat
 
     elif fichier == GROUPES_ABREV_LIBELLE_FILE:
@@ -364,6 +397,13 @@ def charger_csv(fichier: str) -> Any:
 
     elif fichier == ACTEURS_PARTICIP_FILE:
         return pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', dtype='str').set_index('acteur_id')['nb_votes'].to_dict()
+
+    elif fichier == DISTANCES_TENDANCE_TENDANCE_FILE:
+        resultat: dict[str, dict[Any, Any]] = {
+            col: pd.read_csv(DISTANCES_TENDANCE_TENDANCE_FILE, sep=';').set_index('tendance_id')[col].to_dict()
+            for col in ['groupe_id', 'nom', 'prenom']
+        }
+        return resultat
     else:
         raise ValueError(f'table auxiliaire inconnue : {fichier}')
 
@@ -413,7 +453,7 @@ def statistiques() -> None:
         print(f'{i}. {acteur_labels.get(str(a), str(a))}  -  {acteur_labels.get(str(b), str(b))} : {d}')
 
 
-def reduire(algo: str, n_components: int, **kwargs) -> None:
+def reduire_acteurs(algo: str, n_components: int, **kwargs) -> None:
     """Produit ACTEURS_X_Y (2D) ou ACTEURS_X_Y_Z (3D) via UMAP ou MDS"""
 
     distances = charger_distances()
@@ -432,6 +472,28 @@ def reduire(algo: str, n_components: int, **kwargs) -> None:
     result = pd.DataFrame(coords, index=distances.index, columns=columns).round(2)
 
     out_file = ACTEURS_X_Y_FILE if n_components == 2 else ACTEURS_X_Y_Z_FILE
+    result.to_csv(out_file, sep=';', float_format='%.2f')
+
+
+def reduire_tendances(algo: str, n_components: int, **kwargs) -> None:
+    """Produit TENDANCES_X_Y (2D) ou TENDANCES_X_Y_Z (3D) via UMAP ou MDS"""
+
+    distances = charger_distances_tendances()
+
+    if algo == 'umap':
+        import umap
+        reducer = umap.UMAP(n_components=n_components, metric='precomputed', **kwargs)
+    elif algo == 'mds':
+        from sklearn.manifold import MDS
+        reducer = MDS(n_components=n_components, dissimilarity='precomputed', **kwargs)
+    else:
+        raise ValueError(f'algo inconnu: {algo}')
+
+    coords = reducer.fit_transform(distances)
+    columns = ['x', 'y'] if n_components == 2 else ['x', 'y', 'z']
+    result = pd.DataFrame(coords, index=distances.index, columns=columns).round(2)
+
+    out_file = TENDANCE_X_Y_FILE if n_components == 2 else TENDANCES_X_Y_Z_FILE
     result.to_csv(out_file, sep=';', float_format='%.2f')
 
 
@@ -485,6 +547,47 @@ def affiche_graphe_2d() -> None:
         sel.annotation.set_text(labels[sel.index])
 
     ax.set_title('Projection des votants')
+    ax.set_aspect('equal', adjustable='box')
+    plt.tight_layout()
+    plt.show()
+
+
+def affiche_graphe_tendances_2d() -> None:
+    """Affiche un graphe 2D à partir du fichier TENDANCE_X_Y_FILE et des fichiers auxiliaires"""
+    import matplotlib.pyplot as plt
+    import mplcursors
+
+    # lecture du fichier des coordonnées
+    embedding = pd.read_csv(TENDANCE_X_Y_FILE, sep=';', index_col=0)
+
+    # Chargement des tables auxiliaires
+    tendance_couleur   = charger_csv(TENDANCES_COULEUR_FILE)
+
+    # construction du graphe
+    fig, ax = plt.subplots(figsize=(8, 8))
+    xs, ys, colors, sizes, labels = [], [], [], [], []
+
+    for groupe_id, (x, y) in embedding.iterrows():
+        try:
+            tendance_couleur = tendance_couleur[groupe_id]
+            xs.append(x)
+            ys.append(y)
+            colors.append(tendance_couleur)
+            labels.append(10)
+        except (KeyError, TypeError, ValueError):
+            # si une tendance manque dans les tables, on l'ignore
+            continue
+
+    sc = ax.scatter(xs, ys, s=sizes, color=colors)
+
+    # ajout des étiquettes au survol à la souris
+    cursor = mplcursors.cursor(sc, hover=True)
+
+    @cursor.connect('add')
+    def on_add(sel) -> None:
+        sel.annotation.set_text(labels[sel.index])
+
+    ax.set_title('Projection des tendances')
     ax.set_aspect('equal', adjustable='box')
     plt.tight_layout()
     plt.show()
@@ -596,17 +699,17 @@ def main() -> None:
                       + GREEN + 'g' + RESET + ': groupes, ' \
                       + GREEN + 'v' + RESET + ': votes, ' \
                       + GREEN + 'd' + RESET + ': distances, ' \
-                      + GREEN + 'p' + RESET + ': participation, ' \
+                      + GREEN + 'p' + RESET + ': particip, ' \
                       # + GREEN + 's' + RESET + ': statistiques, ' \
                       + GREEN + 'l' + RESET + ': labels, ' \
                       # + GREEN + 'u' + RESET + ': réduction UMAP 2D, ' \
                       # + GREEN + 'u3' + RESET + ': réduction UMAP 3D, ' \
                       # + GREEN + 'm' + RESET + ': réduction MDS 2D, ' \
-                      + GREEN + 'm3' + RESET + ': réduction MDS 3D, ' \
-                      + GREEN + 'a' + RESET + ': affiche graphe 2D, ' \
-                      + GREEN + 'a3' + RESET + ': affiche graphe 3D, ' \
+                      + GREEN + 'm3' + RESET + ': réduc MDS 3D, ' \
+                      + GREEN + 'a' + RESET + ': affiche 2D, ' \
+                      + GREEN + 'a3' + RESET + ': affiche 3D, ' \
                       + GREEN + 'i' + RESET + ': traitement intégral 3D, ' \
-                      + GREEN + 'x' + RESET + ': fonction test, '\
+                      + GREEN + 't' + RESET + ': tendances (intégral), '\
                       + GREEN + 'q' + RESET + ': quitter\
                       > ')
 
@@ -615,8 +718,6 @@ def main() -> None:
                 calcul_groupes()
             case 'v':
                 calcul_acteurs_et_votes()
-            case 't':
-                calcul_tendance_vote()
             case 'd':
                 calcul_distances_acteurs()
             case 'p':
@@ -636,7 +737,7 @@ def main() -> None:
             #     reduire('mds', n_components=2, random_state=42)
             case 'm3':
                 # mds_3d()
-                reduire('mds', n_components=3, random_state=42)
+                reduire_acteurs('mds', n_components=3, random_state=42)
             case 'a':
                 affiche_graphe_2d()
             case 'a3':
@@ -651,12 +752,14 @@ def main() -> None:
                 calcul_participation()
                 calcul_labels()
                 statistiques()
-                reduire('mds', n_components=3, random_state=42)
+                reduire_acteurs('mds', n_components=3, random_state=42)
                 affiche_graphe_3d()
                 break
-            case 'x':
-                calcul_distances_acteurs_tendance()
-                acteur_tendance_relle()
+            case 't':
+                calcul_tendance_vote()
+                calcul_distances_tendances()
+                reduire_tendances('mds', n_components=2, random_state=42)
+                affiche_graphe_tendances_2d()
             case 'q':
                 break
             case _:

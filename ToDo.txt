@@ -1,6 +1,7 @@
 déclarer les en-t^ts 1 seule fois
-calculer DISTANCES_TENDANCE_TENDANCE_FILE et afficher
-
+charger_distances ET charger_distances_tendances devrait être un charger_csv
+confusion abrev_libel_tendance_couleur > abrev_libel_groupe_couleur > bug graphe affiche_graphe_tendances_2d
+charger_csv ne charge pas tout le fichier mais sélectionne des colonnes, erreur ! faut trier après sinon faux-amis
 caluler acteur_tendance_reelle
 
 
