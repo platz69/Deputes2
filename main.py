@@ -5,7 +5,7 @@ import json
 
 # bibliothèques tierces communes
 import pandas as pd
-from typing import Any, Dict, Hashable, Union
+from typing import Any, Dict
 
 # entrées
 ACTEURS_FOLDER         = 'acteur'               # répertoire où l'on dépose les fichiers PAxxxx.json
@@ -334,24 +334,36 @@ def calcul_labels() -> None:
 
             f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + str(grp_label) + ') ' + str(nb_votes) + ' votes\n')
 
-def charger_csv(fichier: str) -> Union[pd.DataFrame, Dict[Hashable, Any], Dict[str, Dict[Hashable, Any]]]:
+def charger_csv(fichier: str) -> Any:
     """Charge une table CSV (';') et la retourne sous forme de DataFrame ou de dict.
     - tables de données matricielles (ex. ACTEUR_VOTE_FILE) -> DataFrame
     - tables auxiliaires -> dicts de mapping
     """
+
     if fichier == ACTEUR_VOTE_FILE:
-        return pd.read_csv(ACTEUR_VOTE_FILE, sep=';', index_col=0)
+        resultat: pd.DataFrame = pd.read_csv(
+            ACTEUR_VOTE_FILE, sep=';', index_col=0
+        )
+        return resultat
+
     elif fichier == ACTEURS_FILE:
-        return {col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
-                for col in ['groupe_id', 'nom', 'prenom']}
+        resultat: dict[str, dict[Any, Any]] = {
+            col: pd.read_csv(ACTEURS_FILE, sep=';').set_index('acteur_id')[col].to_dict()
+            for col in ['groupe_id', 'nom', 'prenom']
+        }
+        return resultat
+
     elif fichier == GROUPES_ABREV_LIBELLE_FILE:
-        return pd.read_csv(GROUPES_ABREV_LIBELLE_FILE, sep=';').set_index('groupe_id')['abrev'].to_dict()
+        return pd.read_csv(GROUPES_ABREV_LIBELLE_FILE, sep=';', dtype='str').set_index('groupe_id')['abrev'].to_dict()
+
     elif fichier == TENDANCES_COULEUR_FILE:
-        return pd.read_csv(TENDANCES_COULEUR_FILE, sep=';').set_index('abrev')['couleur'].to_dict()
+        return pd.read_csv(TENDANCES_COULEUR_FILE, sep=';', dtype='str').set_index('abrev')['couleur'].to_dict()
+
     elif fichier == ACTEUR_LABEL_FILE:
-        return pd.read_csv(ACTEUR_LABEL_FILE, sep=';').set_index('acteur_id')['label'].to_dict()
+        return pd.read_csv(ACTEUR_LABEL_FILE, sep=';', dtype='str').set_index('acteur_id')['label'].to_dict()
+
     elif fichier == ACTEURS_PARTICIP_FILE:
-        return pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';').set_index('acteur_id')['nb_votes'].to_dict()
+        return pd.read_csv(ACTEURS_PARTICIP_FILE, sep=';', dtype='str').set_index('acteur_id')['nb_votes'].to_dict()
     else:
         raise ValueError(f'table auxiliaire inconnue : {fichier}')
 
@@ -380,7 +392,7 @@ def statistiques() -> None:
     distances_df = charger_distances()
 
     # ne pas tenir compte des acteurs n'ayant jamais voté pour ou contre qq chose
-    actors = [a for a in distances_df.index if (acteurs_particip.get(str(a)) or 0) > 0]
+    actors = [a for a in distances_df.index if (int(acteurs_particip.get(a)) or 0) > 0]
     n = len(actors)
     pairs = []
     for i in range(n):
