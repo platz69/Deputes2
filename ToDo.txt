@@ -1,8 +1,9 @@
 déclarer les en-t^ts 1 seule fois
 charger_distances ET charger_distances_tendances devrait être un charger_csv
-confusion abrev_libel_tendance_couleur > abrev_libel_groupe_couleur > bug graphe affiche_graphe_tendances_2d
-charger_csv ne charge pas tout le fichier mais sélectionne des colonnes, erreur ! faut trier après sinon faux-amis
+affiche_graphe_2d est Ok, à prendre comme modèle
+vérifier le code/commentaires générés après les appels de charger_csv_v2
 caluler acteur_tendance_reelle
+1 libelle inutile commun à groupe_libelle_tendance_couleur.csv et groupe_abrev_libelle.csv
 
 
 
