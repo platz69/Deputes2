@@ -1,11 +1,11 @@
 déclarer les en-t^ts 1 seule fois
-charger_distances ET charger_distances_tendances devrait être un charger_csv
 affiche_graphe_2d est Ok, à prendre comme modèle
 vérifier le code/commentaires générés après les appels de charger_csv_v2
 caluler acteur_tendance_reelle
+dees return inutiles ?
+pour accéler ne charger des fichiers que si la variable est à None
+
 1 libelle inutile commun à groupe_libelle_tendance_couleur.csv et groupe_abrev_libelle.csv
-
-
-
+est-ceque df_distances.index = df_distances.index.astype(str) sert à qqchose
 
 

@@ -17,7 +17,7 @@ ORGANES_FOLDER         = 'organe'               # répertoire où l'on dépose l
 SCRUTINS_FOLDER        = 'scrutin'              # répertoire où l'on dépose les fichiers VTANR5LxxVxxxx.json
 
 # paramètres
-TENDANCES_COULEUR_FILE = 'groupe_libelle_tendance_couleur.csv'  # abrev;libelle;tendance;couleur
+ABREVGRP_LIBEL_TENDANCE_COULEUR_FILE = 'abrevgrp_libelle_tendance_couleur.csv'  # abrev;libelle;tendance;couleur
 
 # sorties
 TEMP_FOLDER = 'temp'  # répertoire temporaire pour les fichiers CSV intermédiaires
@@ -43,14 +43,6 @@ DISTANCES_TENDANCE_TENDANCE_FILE = os.path.join(TEMP_FOLDER, 'distance_tendance_
 
 # couleurs d'affichage dans la console
 BLUE, GREEN, RESET = '\033[34m', '\033[32m', '\033[0m'
-
-
-def charger_distances() -> pd.DataFrame:
-    return pd.read_csv(DISTANCES_ACTEUR_ACTEUR_FILE, sep=';', index_col=0)
-
-
-def charger_distances_tendances() -> pd.DataFrame:
-    return pd.read_csv(DISTANCES_TENDANCE_TENDANCE_FILE, sep=';', index_col=0)
 
 
 def calcul_groupes() -> None:
@@ -216,37 +208,33 @@ def calcul_acteurs_et_votes() -> None:
 def charger_csv_v2(fichier: str) -> pd.DataFrame:
     df        = pd.read_csv(fichier, sep=';')   # on charge le fichier
     first_col = df.columns[0]                   # on identifie la 1ère colonne
-    df        = df.set_index(first_col)         # on la déclare comme étant la colonne d'index
+    df        = df.set_index(first_col)         # on la déclare comme étant la colonne d'index, mais ça peut se changer avec .set_index('tendance')
     return df
 
 
 def calcul_tendance_vote():
-    """Calcule la somme des votes (-1, 0, +1) par tendance ET par scrutin
-
-    Parcourt TABLE_VOTES_FILE (index = acteur_id, colonnes = scrutins) et utilise
-    ACTEURS_FILE, GROUPES_FILE et TENDANCES_COULEUR_FILE pour mapper chaque
-    acteur à sa tendance. Écrit le résultat dans GROUPES_VOTE_FILE (CSV) et
-    retourne le DataFrame (index=tendance, colonnes=scrutins).
+    """Somme les votes des acteurs d'une tendance pour chaque vote
+    afin de déterminer ce que la tendance a voté globalement.
+    sommes normalées à (-1, 0, +1) par tendance ET par scrutin
     """
 
-    # lecture du tableau des votes
-    df_votes = pd.read_csv(ACTEUR_VOTE_FILE, sep=';', index_col=0)
+    df_votes = charger_csv_v2(ACTEUR_VOTE_FILE)
 
-    # conversion en valeurs numériques (-1/0/1), remplacer valeurs manquantes par 0
-    df_num = df_votes.apply(pd.to_numeric, errors='coerce').fillna(0).astype(int)
+    # conversion en valeurs numériques (-1/0/1)
+    df_num = df_votes.apply(pd.to_numeric, errors='coerce').astype(int)
 
-    # chargement des mappings pour retrouver la tendance d'un acteur
-    acteurs_groupes  = charger_csv_v2(ACTEURS_FILE)['groupe_id'].to_dict()            # acteur_id -> groupe_id
-    groupes_abrev    = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()  # groupe_id -> abrev
-    groupes_tendance = charger_csv_v2(TENDANCES_COULEUR_FILE)['tendance'].to_dict()
+    # chargement des tables pour retrouver la tendance d'un acteur
+    acteurs_groupes = charger_csv_v2(ACTEURS_FILE)['groupe_id'].to_dict()            # acteur_id -> groupe_id
+    groupe_abrev    = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()  # groupe_id -> abrev
+    groupe_tendance = charger_csv_v2(ABREVGRP_LIBEL_TENDANCE_COULEUR_FILE)['tendance'].to_dict()
 
-    # construire une Series mapping index acteur -> tendance (alignée sur df_num.index)
+    # construit la Series contenant les abreviations de la tendance
     tendances = []
     for acteur_id in df_num.index:
         aid = str(acteur_id)
-        grp = acteurs_groupes.get(aid)
-        abrev = groupes_abrev.get(grp)
-        tend = groupes_tendance.get(str(abrev))
+        grp   = acteurs_groupes[acteur_id]
+        abrev = groupe_abrev[grp]
+        tend = groupe_tendance[abrev]
         tendances.append(tend)
 
     s_tendance = pd.Series(tendances, index=df_num.index)
@@ -378,8 +366,8 @@ def calcul_acteur_tendance_relle() -> None:
     """
 
     acteurs_groupes    = charger_csv_v2(ACTEURS_FILE)['groupe_id'].to_dict()
-    groupes_abrev      = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()
-    groupes_tendance   = charger_csv_v2(TENDANCES_COULEUR_FILE)['tendance'].to_dict()
+    groupe_abrev       = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()
+    groupe_tendance    = charger_csv_v2(ABREVGRP_LIBEL_TENDANCE_COULEUR_FILE)['tendance'].to_dict()
     df_distances       = pd.read_csv(DISTANCES_ACTEUR_TENDANCE_FILE, sep=';', index_col=0)
     df_distances.index = df_distances.index.astype(str)
 
@@ -391,8 +379,8 @@ def calcul_acteur_tendance_relle() -> None:
         f.write('acteur_id;groupe_id;groupe_reel_id\n')
         for acteur_id in df_distances.index:
             grp = acteurs_groupes.get(acteur_id)
-            abrev = str(groupes_abrev.get(grp))
-            tendance_declaree = groupes_tendance.get(abrev) if abrev is not None else None
+            abrev = str(groupe_abrev.get(grp))
+            tendance_declaree = groupe_tendance.get(abrev) if abrev is not None else None
             if not tendance_declaree:
                 tendance_declaree = 'Inconnu'
             groupe_reel_id = tendance_reelle.get(acteur_id, 'Inconnu')
@@ -421,7 +409,7 @@ def calcul_participation() -> None:
 def calcul_labels() -> None:
 
     acteurs               = charger_csv_v2(ACTEURS_FILE)
-    groupes_abrev_libelle = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()
+    groupe_abrev_libelle = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()
     acteurs_particip      = charger_csv_v2(ACTEURS_PARTICIP_FILE)['nb_votes'].to_dict()
 
     acteurs_groupes = acteurs['groupe_id']
@@ -436,7 +424,7 @@ def calcul_labels() -> None:
             prenom = acteurs_prenom.get(acteur_id, '')
             nom = acteurs_nom.get(acteur_id, '')
             grp_id = acteurs_groupes.get(acteur_id)
-            grp_label = groupes_abrev_libelle.get(grp_id) or ''
+            grp_label = groupe_abrev_libelle.get(grp_id) or ''
             nb_votes = acteurs_particip.get(acteur_id) or 0
 
             f.write(str(acteur_id) + ';' + prenom + ' ' + nom + ' ' + acteur_id + ' (' + str(grp_label) + ') ' + str(nb_votes) + ' votes\n')
@@ -463,7 +451,7 @@ def statistiques() -> None:
         print(f'{i}. {acteur_labels.get(str(acteur), str(acteur))}: {count}')
 
     # Calculer les paires les plus proches/éloignées à partir de DISTANCES_ACTEUR_ACTEUR_FILE
-    distances_df = charger_distances()
+    distances_df = charger_csv_v2(DISTANCES_ACTEUR_ACTEUR_FILE)
 
     # ne pas tenir compte des acteurs n'ayant jamais voté pour ou contre qq chose
     actors = [a for a in distances_df.index if (int(acteurs_particip.get(a)) or 0) > 0]
@@ -490,7 +478,7 @@ def statistiques() -> None:
 def reduire_acteurs(algo: str, n_components: int, **kwargs) -> None:
     """Produit ACTEURS_X_Y (2D) ou ACTEURS_X_Y_Z (3D) via UMAP ou MDS"""
 
-    distances = charger_distances()
+    distances = charger_csv_v2(DISTANCES_ACTEUR_ACTEUR_FILE)
 
     if algo == 'umap':
         import umap
@@ -513,7 +501,7 @@ def reduire_acteurs(algo: str, n_components: int, **kwargs) -> None:
 def reduire_tendances(algo: str, n_components: int, **kwargs) -> None:
     """Produit TENDANCES_X_Y (2D) ou TENDANCES_X_Y_Z (3D) via UMAP ou MDS"""
 
-    distances = charger_distances_tendances()
+    distances = charger_csv_v2(DISTANCES_TENDANCE_TENDANCE_FILE)
 
     if algo == 'umap':
         import umap
@@ -544,7 +532,7 @@ def affiche_graphe_2d() -> None:
     # trouver la ccouleur de l'acteur
     acteur_groupe  = charger_csv_v2(ACTEURS_FILE)['groupe_id'].to_dict()
     groupe_abrev   = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()
-    abrev_couleur  = charger_csv_v2(TENDANCES_COULEUR_FILE)['couleur'].to_dict()
+    abrev_couleur  = charger_csv_v2(ABREVGRP_LIBEL_TENDANCE_COULEUR_FILE)['couleur'].to_dict()
 
     # acteurs_particip = charger_csv_v2(ACTEURS_PARTICIP_FILE)
 
@@ -588,25 +576,23 @@ def affiche_graphe_tendances_2d() -> None:
     import mplcursors
 
     # lecture du fichier des coordonnées
-    embedding = pd.read_csv(TENDANCE_X_Y_FILE, sep=';', index_col=0)
+    tendance_x_y = charger_csv_v2(TENDANCE_X_Y_FILE)
 
     # Chargement des tables auxiliaires
-    tendance_couleur = charger_csv_v2(TENDANCES_COULEUR_FILE)['couleur'].to_dict()
+    groupe_abrev  = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()
+    tendance_couleur = charger_csv_v2(ABREVGRP_LIBEL_TENDANCE_COULEUR_FILE).set_index('tendance')['couleur'].to_dict()
 
     # construction du graphe
     fig, ax = plt.subplots(figsize=(8, 8))
     xs, ys, colors, sizes, labels = [], [], [], [], []
 
-    for groupe_id, (x, y) in embedding.iterrows():
-        try:
-            couleur = tendance_couleur[groupe_id]
-            xs.append(x)
-            ys.append(y)
-            colors.append(couleur)
-            labels.append(10)
-        except (KeyError, TypeError, ValueError):
-            # si une tendance manque dans les tables, on l'ignore
-            continue
+    for tendance, (x, y) in tendance_x_y.iterrows():
+        xs.append(x)
+        ys.append(y)
+        # colors.append(abrev_couleur[tendance])
+        colors.append(tendance_couleur[tendance])
+        labels.append(tendance)
+        sizes.append(80)
 
     sc = ax.scatter(xs, ys, s=sizes, color=colors)
 
@@ -639,7 +625,7 @@ def affiche_graphe_3d() -> None:
     acteurs_nom = acteurs_maps['nom']
     acteurs_prenom = acteurs_maps['prenom']
     groupes = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)['abrev'].to_dict()
-    tendance_couleur = charger_csv_v2(TENDANCES_COULEUR_FILE)['couleur'].to_dict()
+    tendance_couleur = charger_csv_v2(ABREVGRP_LIBEL_TENDANCE_COULEUR_FILE)['couleur'].to_dict()
     acteur_labels = charger_csv_v2(ACTEUR_LABEL_FILE)['label'].to_dict()
 
     # # Calcul de la taille des points
@@ -739,7 +725,6 @@ def main() -> None:
                       + GREEN + 'a3' + RESET + ': affiche 3D, ' \
                       + GREEN + 'i' + RESET + ': traitement intégral 3D, ' \
                       + GREEN + 't' + RESET + ': tendances (intégral), '\
-                      + GREEN + 'c' + RESET + ': charger_csv_v2, '\
                       + GREEN + 'q' + RESET + ': quitter\
                       > ')
 
@@ -788,14 +773,8 @@ def main() -> None:
             case 't':
                 calcul_tendance_vote()
                 calcul_distances_tendances()
-                reduire_tendances('mds', n_components=3, random_state=42)
+                reduire_tendances('mds', n_components=2, random_state=42)
                 affiche_graphe_tendances_2d()
-            case 'c':
-                # df = charger_csv_testcsv(GROUPES_ABREV_LIBELLE_FILE)
-                # print(df['PO645633']['abrev'])
-                d = charger_csv_v2(GROUPES_ABREV_LIBELLE_FILE)
-                print(d['PO645633']['abrev'])
-                print(d['PO645633']['libelle'])
             case 'q':
                 break
             case _:
