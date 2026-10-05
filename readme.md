@@ -41,6 +41,6 @@ Capture écran :
 
 ![projection_3d.png](projection_3d.png)
 
-Version interactive à télécharger :
+Version interactive à télécharger (clic + otion "Download" à droite) :
 
 ![projection_3d.html](projection_3d.html)
